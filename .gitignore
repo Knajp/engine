@@ -1,0 +1,10 @@
+vendor/lib/*
+.vs/*
+engine/*
+x64/*
+engine.vcxproj.user
+
+!vendor/lib/glfw3.dll
+!vendor/lib/glfw3.lib
+!vendor/lib/glfw3_mt.lib
+!vendor/lib/glfw3dll.lib
