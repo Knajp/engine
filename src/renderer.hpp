@@ -3,22 +3,8 @@
 #include "logger.hpp"
 #include <vector>
 #include <iostream>
+#include <optional>
 
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
-{
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-	if (func != nullptr)
-		return func(instance, pCreateInfo, pAllocator, pDebugUtilsMessenger);
-	else return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-	if (func != nullptr)
-		func(instance, debugMessenger, pAllocator);
-	
-}
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -30,6 +16,16 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 	return VK_FALSE;
 }
+
+struct QueueFamilyIndices
+{
+	std::optional<uint32_t> graphicsFamily;
+
+	bool isComplete() const
+	{
+		return graphicsFamily.has_value();
+	}
+};
 
 namespace ke
 {
@@ -56,10 +52,16 @@ namespace ke
 		bool checkValidationLayerSupport();
 		std::vector<const char*> getRequiredExtensions();
 		void setupDebugMessenger();
+		void pickPhysicalDevice();
+		unsigned int rateDeviceSuitability(VkPhysicalDevice device);
+		QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
 	private:
 		VkInstance mInstance;
 
 		VkDebugUtilsMessengerEXT mDebugMessenger;
+
+		VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
+		
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};

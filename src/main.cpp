@@ -5,9 +5,15 @@
 
 int main(int argc, char** argv)
 {
+	ke::Window::init();
 	ke::Logger logger("Main Function Logger", spdlog::level::trace);
 
-	ke::Window window(800, 800, "Hello, World!");
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* videoMode = glfwGetVideoMode(monitor);
+	unsigned int screenWidth = videoMode->width, screenHeight = videoMode->height;
+
+	ke::Window window(screenWidth/2, screenHeight/2, "Hello, World!");
+	window.setPosition(screenWidth / 4, screenHeight / 4);
 	logger.info("Created GLFW window.");
 
 	ke::Renderer& renderer = ke::Renderer::getInstance();

@@ -12,6 +12,16 @@ ke::Window::~Window()
 	glfwTerminate();
 }
 
+void ke::Window::init()
+{
+	glfwInit();
+}
+
+void ke::Window::setPosition(uint16_t x, uint16_t y)
+{
+	glfwSetWindowPos(pWindow, x, y);
+}
+
 bool ke::Window::shouldClose()
 {
 	return glfwWindowShouldClose(pWindow);
@@ -24,9 +34,8 @@ void ke::Window::pollEvents()
 
 void ke::Window::initWindow()
 {
-	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
+	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 	pWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
 }

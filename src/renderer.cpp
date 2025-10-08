@@ -1,6 +1,23 @@
 #include "renderer.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <map>
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
+{
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	if (func != nullptr)
+		return func(instance, pCreateInfo, pAllocator, pDebugUtilsMessenger);
+	else return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+	if (func != nullptr)
+		func(instance, debugMessenger, pAllocator);
+
+}
 
 const std::vector<const char*> gValidationLayers
 {
@@ -16,6 +33,8 @@ bool enableValidationLayers = true;
 void ke::Renderer::initVulkan()
 {
 	createVulkanInstance();
+	setupDebugMessenger();
+	pickPhysicalDevice();
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -139,6 +158,77 @@ void ke::Renderer::setupDebugMessenger()
 
 	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
 		mLogger.critical("Failed to create a debug utils messenger!");
+}
+
+void ke::Renderer::pickPhysicalDevice()
+{
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
+
+	if (deviceCount == 0)
+		mLogger.critical("No physical devices found on this machine.");
+
+	std::map<int, VkPhysicalDevice> candidates;
+
+	for (const auto& device : devices)
+	{
+		unsigned int score = rateDeviceSuitability(device);
+		candidates.insert(std::make_pair(score, device));
+	}
+
+	if (candidates.rbegin()->first > 0)
+	{
+		mPhysicalDevice = candidates.rbegin()->second;
+		mLogger.info(("Chosen physical device has score of " + std::to_string(candidates.rbegin()->first)));
+	}
+	else
+		mLogger.critical("Failed to find a suitable physical device!");
+}
+
+unsigned int ke::Renderer::rateDeviceSuitability(VkPhysicalDevice device)
+{
+	VkPhysicalDeviceProperties  deviceProperties{};
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	int score = 0;
+
+	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
+
+	score += deviceProperties.limits.maxImageDimension2D;
+
+	if (!deviceFeatures.geometryShader) return 0;
+
+	QueueFamilyIndices indices = findQueueFamilies(device);
+	if (!indices.isComplete()) return 0;
+
+	return score;
+}
+
+QueueFamilyIndices ke::Renderer::findQueueFamilies(VkPhysicalDevice device) const
+{
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	int i = 0;
+	for (const auto& family : queueFamilies)
+	{
+		if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			indices.graphicsFamily = i;
+
+
+		if (indices.isComplete()) break;
+		i++;
+	}
+
+	return indices;
 }
 
 void ke::Renderer::cleanupRenderer()
