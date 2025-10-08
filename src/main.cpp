@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 
 	ke::Renderer& renderer = ke::Renderer::getInstance();
 	logger.trace("Called for vulkan initiation.");
-	renderer.initVulkan();
+	renderer.initVulkan(window.getWindow());
 
 	while (!window.shouldClose())
 	{

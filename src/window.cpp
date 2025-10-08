@@ -32,6 +32,11 @@ void ke::Window::pollEvents()
 	glfwPollEvents();
 }
 
+GLFWwindow* ke::Window::getWindow() const
+{
+	return pWindow;
+}
+
 void ke::Window::initWindow()
 {
 

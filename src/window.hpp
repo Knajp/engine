@@ -17,6 +17,8 @@ namespace ke
 		bool shouldClose();
 
 		void pollEvents();
+
+		GLFWwindow* getWindow() const;
 	private:
 		const uint16_t mWidth;
 		const uint16_t mHeight;

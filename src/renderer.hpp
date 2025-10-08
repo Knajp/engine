@@ -1,9 +1,13 @@
 #pragma once
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
 #include "logger.hpp"
 #include <vector>
 #include <iostream>
 #include <optional>
+#include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -20,10 +24,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 struct QueueFamilyIndices
 {
 	std::optional<uint32_t> graphicsFamily;
+	std::optional<uint32_t> presentFamily;
 
 	bool isComplete() const
 	{
-		return graphicsFamily.has_value();
+		return graphicsFamily.has_value() && presentFamily.has_value();
 	}
 };
 
@@ -41,7 +46,7 @@ namespace ke
 		Renderer(Renderer& other) = delete;
 		Renderer operator=(Renderer& other) = delete;
 
-		void initVulkan();
+		void initVulkan(GLFWwindow* window);
 
 		void cleanupRenderer();
 	private:
@@ -55,13 +60,21 @@ namespace ke
 		void pickPhysicalDevice();
 		unsigned int rateDeviceSuitability(VkPhysicalDevice device);
 		QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
+		void createLogicalDevice();
+		void createWindowSurface(GLFWwindow* window);
+		bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 	private:
 		VkInstance mInstance;
 
 		VkDebugUtilsMessengerEXT mDebugMessenger;
 
 		VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
-		
+		VkDevice mDevice = VK_NULL_HANDLE;
+
+		VkQueue graphicsQueue;
+		VkQueue presentQueue;
+
+		VkSurfaceKHR mSurface;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};

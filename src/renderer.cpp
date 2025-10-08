@@ -1,9 +1,8 @@
 #include "renderer.hpp"
-#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <map>
-
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
+#include <set>
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
 {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr)
@@ -11,7 +10,7 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
 	else return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr)
@@ -24,17 +23,24 @@ const std::vector<const char*> gValidationLayers
 	"VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char*> gDeviceExtensions
+{
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 #ifdef NDEBUG
 bool enableValidationLayers = false;
 #else
 bool enableValidationLayers = true;
 #endif
 
-void ke::Renderer::initVulkan()
+void ke::Renderer::initVulkan(GLFWwindow* window)
 {
 	createVulkanInstance();
 	setupDebugMessenger();
+	createWindowSurface(window);
 	pickPhysicalDevice();
+	createLogicalDevice();
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -47,6 +53,8 @@ void ke::Renderer::createVulkanInstance()
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
 	std::vector<const char*> requiredExtensions = getRequiredExtensions();
+	requiredExtensions.push_back("VK_KHR_win32_surface");
+	requiredExtensions.push_back("VK_KHR_surface");
 
 	if (checkInstanceExtensionSupport(requiredExtensions))
 		mLogger.info("All required instance extensions are supported.");
@@ -205,6 +213,8 @@ unsigned int ke::Renderer::rateDeviceSuitability(VkPhysicalDevice device)
 	QueueFamilyIndices indices = findQueueFamilies(device);
 	if (!indices.isComplete()) return 0;
 
+	if (!checkDeviceExtensionSupport(device)) return 0;
+
 	return score;
 }
 
@@ -223,6 +233,11 @@ QueueFamilyIndices ke::Renderer::findQueueFamilies(VkPhysicalDevice device) cons
 		if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			indices.graphicsFamily = i;
 
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);
+
+		if (presentSupport)
+			indices.presentFamily = i;
 
 		if (indices.isComplete()) break;
 		i++;
@@ -231,11 +246,89 @@ QueueFamilyIndices ke::Renderer::findQueueFamilies(VkPhysicalDevice device) cons
 	return indices;
 }
 
+void ke::Renderer::createLogicalDevice()
+{
+	QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
+
+	float queuePriority = 1.0f;
+
+	std::vector<VkDeviceQueueCreateInfo> createInfos;
+	std::set<uint32_t> uniqueQueueIndices = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+	
+	for (const auto& index : uniqueQueueIndices)
+	{
+		VkDeviceQueueCreateInfo graphicsQueueInfo{};
+		graphicsQueueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		graphicsQueueInfo.queueCount = 1;
+		graphicsQueueInfo.queueFamilyIndex = index;
+		graphicsQueueInfo.pQueuePriorities = &queuePriority;
+
+		createInfos.push_back(graphicsQueueInfo);
+	}
+	
+
+	VkPhysicalDeviceFeatures deviceFeatures{};
+
+	VkDeviceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(createInfos.size());
+	createInfo.pQueueCreateInfos = createInfos.data();
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(gDeviceExtensions.size());
+	createInfo.ppEnabledExtensionNames = gDeviceExtensions.data();
+	if (enableValidationLayers)
+	{
+		createInfo.enabledLayerCount = static_cast<uint32_t>(gValidationLayers.size());
+		createInfo.ppEnabledLayerNames = gValidationLayers.data();
+	}
+	else
+		createInfo.enabledLayerCount = 0;
+
+	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
+		mLogger.critical("Failed to create logical device!");
+
+	mLogger.info("Created a logical device.");
+
+	vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
+	vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &presentQueue);
+}
+
+void ke::Renderer::createWindowSurface(GLFWwindow* window)
+{
+	VkWin32SurfaceCreateInfoKHR createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	createInfo.hwnd = glfwGetWin32Window(window);
+	createInfo.hinstance = GetModuleHandle(nullptr);
+
+	if (vkCreateWin32SurfaceKHR(mInstance, &createInfo, nullptr, &mSurface) != VK_SUCCESS)
+		mLogger.error("Failed to create window surface.");
+
+	mLogger.info("Created a window surface.");
+}
+
+bool ke::Renderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
+{
+	uint32_t extensionCount = 0;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+	std::vector<VkExtensionProperties> extensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+	
+	std::set<std::string> requiredExtensions(gDeviceExtensions.begin(), gDeviceExtensions.end());
+
+	for (const auto& extension : extensions)
+		requiredExtensions.erase(extension.extensionName);
+
+	return requiredExtensions.empty();
+		
+}
+
 void ke::Renderer::cleanupRenderer()
 {
 	mLogger.trace("Initiating renderer cleanup.");
 
+	vkDestroyDevice(mDevice, nullptr);
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
 	vkDestroyInstance(mInstance, nullptr);
 	
 	mLogger.trace("Renderer cleanup done.");
