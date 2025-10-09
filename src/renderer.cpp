@@ -41,6 +41,7 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createWindowSurface(window);
 	pickPhysicalDevice();
 	createLogicalDevice();
+	createSwapchain(window);
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -215,6 +216,9 @@ unsigned int ke::Renderer::rateDeviceSuitability(VkPhysicalDevice device)
 
 	if (!checkDeviceExtensionSupport(device)) return 0;
 
+	SwapchainSupportDetails swapchainSupport = querySwapchainSupport(device);
+	if (swapchainSupport.formats.empty() || swapchainSupport.presentModes.empty()) return 0;
+
 	return score;
 }
 
@@ -322,10 +326,130 @@ bool ke::Renderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
 		
 }
 
+SwapchainSupportDetails ke::Renderer::querySwapchainSupport(VkPhysicalDevice device) const
+{
+	SwapchainSupportDetails supportDetails;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, mSurface, &supportDetails.capabilities);
+
+	uint32_t formatCount = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, mSurface, &formatCount, nullptr);
+	if (formatCount != 0)
+	{
+		supportDetails.formats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, mSurface, &formatCount, supportDetails.formats.data());
+	}
+	
+	uint32_t presentModeCount = 0;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &presentModeCount, nullptr);
+	if (presentModeCount != 0)
+	{
+		supportDetails.presentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, mSurface, &presentModeCount, supportDetails.presentModes.data());
+	}
+
+
+
+	return supportDetails;
+}
+
+VkSurfaceFormatKHR ke::Renderer::chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
+{
+	for (const auto& format : availableFormats)
+		if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		{
+			mLogger.info("Desired format is available and chosen.");
+			return format;
+		}
+	mLogger.warn("Desired format is not available.");
+	return availableFormats[0];
+}
+
+VkPresentModeKHR ke::Renderer::chooseSurfacePresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
+{
+	for (const auto& presentMode : availablePresentModes)
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+		{
+			mLogger.info("Mailbox present mode is available and chosen.");
+			return presentMode;
+		}
+	mLogger.warn("Mailbox present mode is not available, defaulting to FIFO.");
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D ke::Renderer::chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow)
+{
+	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+		return capabilities.currentExtent;
+
+	int width, height;
+	glfwGetFramebufferSize(pWindow, &width, &height);
+
+	VkExtent2D actualExtent = {
+		static_cast<uint32_t>(width),
+		static_cast<uint32_t>(height)
+	};
+
+	actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+	actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+	return actualExtent;
+}
+
+void ke::Renderer::createSwapchain(GLFWwindow* pWindow)
+{
+	SwapchainSupportDetails supportDetails = querySwapchainSupport(mPhysicalDevice);
+
+	VkSurfaceFormatKHR surfaceFormat = chooseSurfaceFormat(supportDetails.formats);
+	VkPresentModeKHR presentMode = chooseSurfacePresentMode(supportDetails.presentModes);
+	VkExtent2D extent = chooseSwapchainExtent(supportDetails.capabilities, pWindow);
+
+	uint32_t imageCount = supportDetails.capabilities.minImageCount + 1;
+	if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount)
+		imageCount = supportDetails.capabilities.maxImageCount;
+
+	VkSwapchainCreateInfoKHR createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageExtent = extent;
+	createInfo.presentMode = presentMode;
+	createInfo.surface = mSurface;
+	createInfo.minImageCount = supportDetails.capabilities.minImageCount;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
+	uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+	if (indices.graphicsFamily != indices.presentFamily)
+	{
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+	else createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	createInfo.preTransform = supportDetails.capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+	createInfo.clipped = VK_TRUE;
+
+	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS)
+		mLogger.critical("Failed to create Swapchain!");
+	mLogger.info("Created swapchain.");
+
+	vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, nullptr);
+	mSwapchainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, mSwapchainImages.data());
+
+	mSwapchainImageFormat = surfaceFormat.format;
+	mSwapchainExtent = extent;
+}
+
 void ke::Renderer::cleanupRenderer()
 {
 	mLogger.trace("Initiating renderer cleanup.");
 
+	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 	vkDestroyDevice(mDevice, nullptr);
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);

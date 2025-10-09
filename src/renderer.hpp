@@ -1,5 +1,6 @@
 #pragma once
 #define VK_USE_PLATFORM_WIN32_KHR
+#define NOMINMAX
 #include <vulkan/vulkan.h>
 #include "logger.hpp"
 #include <vector>
@@ -30,6 +31,14 @@ struct QueueFamilyIndices
 	{
 		return graphicsFamily.has_value() && presentFamily.has_value();
 	}
+};
+
+struct SwapchainSupportDetails
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	std::vector<VkSurfaceFormatKHR> formats;
+	std::vector<VkPresentModeKHR> presentModes;
+
 };
 
 namespace ke
@@ -63,6 +72,11 @@ namespace ke
 		void createLogicalDevice();
 		void createWindowSurface(GLFWwindow* window);
 		bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+		inline SwapchainSupportDetails querySwapchainSupport(VkPhysicalDevice device) const;
+		VkSurfaceFormatKHR chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+		VkPresentModeKHR chooseSurfacePresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+		VkExtent2D chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow);
+		void createSwapchain(GLFWwindow* pWindow);
 	private:
 		VkInstance mInstance;
 
@@ -75,6 +89,11 @@ namespace ke
 		VkQueue presentQueue;
 
 		VkSurfaceKHR mSurface;
+		VkSwapchainKHR mSwapchain;
+		std::vector<VkImage> mSwapchainImages;
+		VkFormat mSwapchainImageFormat;
+		VkExtent2D mSwapchainExtent;
+
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};
