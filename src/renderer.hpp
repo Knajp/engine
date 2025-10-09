@@ -77,6 +77,7 @@ namespace ke
 		VkPresentModeKHR chooseSurfacePresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 		VkExtent2D chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow);
 		void createSwapchain(GLFWwindow* pWindow);
+		void createSwapchainImageViews();
 	private:
 		VkInstance mInstance;
 
@@ -89,10 +90,14 @@ namespace ke
 		VkQueue presentQueue;
 
 		VkSurfaceKHR mSurface;
+
 		VkSwapchainKHR mSwapchain;
 		std::vector<VkImage> mSwapchainImages;
+		std::vector<VkImageView> mSwapchainImageViews;
+
 		VkFormat mSwapchainImageFormat;
 		VkExtent2D mSwapchainExtent;
+		
 
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
