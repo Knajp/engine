@@ -78,6 +78,9 @@ namespace ke
 		VkExtent2D chooseSwapchainExtent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* pWindow);
 		void createSwapchain(GLFWwindow* pWindow);
 		void createSwapchainImageViews();
+		void createGraphicsPipelineLayout();
+		void createGraphicsPipeline();
+		VkShaderModule createShaderModule(const std::vector<char>& code) const;
 	private:
 		VkInstance mInstance;
 
@@ -98,7 +101,7 @@ namespace ke
 		VkFormat mSwapchainImageFormat;
 		VkExtent2D mSwapchainExtent;
 		
-
+		VkPipelineLayout mPipelineLayout;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};

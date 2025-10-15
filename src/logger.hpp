@@ -7,12 +7,12 @@ namespace ke {
 	public:
 		Logger(std::string n, spdlog::level::level_enum l);
 
-		void trace(std::string content);
-		void debug(std::string content);
-		void info(std::string content);
-		void warn(std::string content);
-		void error(std::string content);
-		void critical(std::string content);
+		void trace(std::string content) const;
+		void debug(std::string content) const;
+		void info(std::string content) const;
+		void warn(std::string content) const;
+		void error(std::string content) const;
+		void critical(std::string content) const;
 	private:
 		std::string mLoggerName;
 

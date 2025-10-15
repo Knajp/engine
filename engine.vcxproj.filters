@@ -41,5 +41,12 @@
     <ClInclude Include="src\renderer.hpp">
       <Filter>Pliki nagłówkowe</Filter>
     </ClInclude>
+    <ClInclude Include="src\util.hpp">
+      <Filter>Pliki nagłówkowe</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\src\shader.vert" />
+    <None Include="shader\src\shader.frag" />
   </ItemGroup>
 </Project>

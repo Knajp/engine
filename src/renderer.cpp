@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include "util.hpp"
+
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
 {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -43,6 +45,7 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createLogicalDevice();
 	createSwapchain(window);
 	createSwapchainImageViews();
+	createGraphicsPiplines();
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -472,6 +475,91 @@ void ke::Renderer::createSwapchainImageViews()
 			mLogger.error("Failed to create an image view.");
 	}
 	mLogger.info("Created swapchain image views.");
+}
+
+void ke::Renderer::createGraphicsPipelineLayout()
+{
+	VkPipelineLayoutCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	createInfo.pushConstantRangeCount = 0;
+	createInfo.setLayoutCount = 0;
+	
+	if (vkCreatePipelineLayout(mDevice, &createInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
+		mLogger.error("Failed to create graphics pipeline layout!");
+	mLogger.info("Created graphics pipeline layout.");
+}
+
+void ke::Renderer::createGraphicsPipeline()
+{
+	auto vertexCode = ke::util::readFile("shader/bin/vert.spv");
+	auto fragCode = ke::util::readFile("shader/bin/frag.spv");
+
+	auto vertexModule = createShaderModule(vertexCode);
+	auto fragModule = createShaderModule(fragCode);
+
+	VkPipelineShaderStageCreateInfo vertStage{};
+	vertStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertStage.module = vertexModule;
+	vertStage.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragStage{};
+	fragStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragStage.module = fragModule;
+	fragStage.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertStage, fragStage };
+	
+	VkPipelineColorBlendAttachmentState colorAtt{};
+	colorAtt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorAtt.blendEnable = VK_FALSE;
+
+	VkPipelineColorBlendStateCreateInfo colorBlend{};
+	colorBlend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlend.attachmentCount = 1;
+	colorBlend.pAttachments = &colorAtt;
+	colorBlend.logicOpEnable = VK_FALSE;
+
+	std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_VIEWPORT };
+
+	VkPipelineDynamicStateCreateInfo dynamicState{};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+	dynamicState.pDynamicStates = dynamicStates.data();
+	
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.
+	
+	VkGraphicsPipelineCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	createInfo.layout = mPipelineLayout;
+	createInfo.stageCount = 2;
+	createInfo.pStages = shaderStages;
+	createInfo.pColorBlendState = &colorBlend;
+	createInfo.pDepthStencilState = nullptr;
+	createInfo.pDynamicState = &dynamicState;
+	createInfo.pInputAssemblyState = &inputAssembly;
+	createInfo.
+}
+
+VkShaderModule ke::Renderer::createShaderModule(const std::vector<char>& code) const
+{
+	VkShaderModuleCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.codeSize = code.size();
+	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+	VkShaderModule mod;
+	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &mod) != VK_SUCCESS)
+		mLogger.error("Failed to create a shader module.");
+
+	return mod;
 }
 
 void ke::Renderer::cleanupRenderer()

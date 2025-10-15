@@ -11,32 +11,32 @@ ke::Logger::Logger(std::string n, spdlog::level::level_enum l)
 	mLogger.get()->set_level(l);
 }
 
-void ke::Logger::trace(std::string content)
+void ke::Logger::trace(std::string content) const
 {
 	mLogger.get()->trace(content);
 }
 
-void ke::Logger::debug(std::string content)
+void ke::Logger::debug(std::string content) const
 {
 	mLogger.get()->debug(content);
 }
 
-void ke::Logger::info(std::string content)
+void ke::Logger::info(std::string content) const
 {
 	mLogger.get()->info(content);
 }
 
-void ke::Logger::warn(std::string content)
+void ke::Logger::warn(std::string content) const
 {
 	mLogger.get()->warn(content);
 }
 
-void ke::Logger::error(std::string content)
+void ke::Logger::error(std::string content) const
 {
 	mLogger.get()->error(content);
 }
 
-void ke::Logger::critical(std::string content)
+void ke::Logger::critical(std::string content) const
 {
 	mLogger.get()->critical(content);
 }
