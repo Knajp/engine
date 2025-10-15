@@ -45,7 +45,9 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createLogicalDevice();
 	createSwapchain(window);
 	createSwapchainImageViews();
-	createGraphicsPiplines();
+	createRenderPass();
+	createGraphicsPipelineLayout();
+	createGraphicsPipeline();
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -534,8 +536,43 @@ void ke::Renderer::createGraphicsPipeline()
 	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	
 	VkPipelineMultisampleStateCreateInfo multisampling{};
-	multisampling.
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.sampleShadingEnable = VK_FALSE;
+
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.depthClampEnable = VK_FALSE;
+	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.lineWidth = 1.0f;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	
+	VkViewport vp{};
+	vp.width = mSwapchainExtent.width;
+	vp.height = mSwapchainExtent.height;
+	vp.x = 0;
+	vp.y = 0;
+	vp.maxDepth = 1.0f;
+	vp.minDepth = -1.0f;
+
+	VkRect2D scissor{};
+	scissor.extent = mSwapchainExtent;
+	scissor.offset = { 0,0 };
+
+	VkPipelineViewportStateCreateInfo viewport{};
+	viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewport.scissorCount = 1;
+	viewport.viewportCount = 1;
+	viewport.pViewports = &vp;
+	viewport.pScissors = &scissor;
+
+	VkPipelineVertexInputStateCreateInfo vertexInput{};
+	vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInput.vertexAttributeDescriptionCount = 0;
+	vertexInput.vertexBindingDescriptionCount = 0;
+
 	VkGraphicsPipelineCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	createInfo.layout = mPipelineLayout;
@@ -545,7 +582,50 @@ void ke::Renderer::createGraphicsPipeline()
 	createInfo.pDepthStencilState = nullptr;
 	createInfo.pDynamicState = &dynamicState;
 	createInfo.pInputAssemblyState = &inputAssembly;
-	createInfo.
+	createInfo.pMultisampleState = &multisampling;
+	createInfo.pRasterizationState = &rasterizer;
+	createInfo.pTessellationState = nullptr;
+	createInfo.pViewportState = &viewport;
+	createInfo.pVertexInputState = &vertexInput;
+	createInfo.renderPass = mRenderPass;
+
+	if (vkCreateGraphicsPipelines(mDevice, 0, 1, &createInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
+		mLogger.critical("Failed to create a graphics pipeline!");
+	mLogger.info("Created graphics pipeline!");
+}
+
+void ke::Renderer::createRenderPass()
+{
+	VkAttachmentDescription colorAtt{};
+	colorAtt.format = mSwapchainImageFormat;
+	colorAtt.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAtt.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAtt.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAtt.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAtt.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference colorRef{};
+	colorRef.attachment = 0;
+	colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorRef;
+
+	VkRenderPassCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	createInfo.subpassCount = 1;
+	createInfo.pSubpasses = &subpass;
+	createInfo.attachmentCount = 1;
+	createInfo.pAttachments = &colorAtt;
+
+	if (vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS)
+		mLogger.error("Failed to create render pass!");
+	mLogger.info("Created render pass.");
 }
 
 VkShaderModule ke::Renderer::createShaderModule(const std::vector<char>& code) const
@@ -566,6 +646,8 @@ void ke::Renderer::cleanupRenderer()
 {
 	mLogger.trace("Initiating renderer cleanup.");
 
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 	vkDestroyDevice(mDevice, nullptr);
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);

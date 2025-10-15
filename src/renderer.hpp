@@ -80,6 +80,7 @@ namespace ke
 		void createSwapchainImageViews();
 		void createGraphicsPipelineLayout();
 		void createGraphicsPipeline();
+		void createRenderPass();
 		VkShaderModule createShaderModule(const std::vector<char>& code) const;
 	private:
 		VkInstance mInstance;
@@ -101,7 +102,10 @@ namespace ke
 		VkFormat mSwapchainImageFormat;
 		VkExtent2D mSwapchainExtent;
 		
+		VkRenderPass mRenderPass;
+
 		VkPipelineLayout mPipelineLayout;
+		VkPipeline mGraphicsPipeline;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};
