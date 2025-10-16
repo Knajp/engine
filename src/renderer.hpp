@@ -58,6 +58,12 @@ namespace ke
 		void initVulkan(GLFWwindow* window);
 
 		void cleanupRenderer();
+
+		void beginRecording();
+		void endRecording();
+		void present() const;
+
+		VkCommandBuffer getCommandBuffer() const;
 	private:
 		Renderer() = default;
 
@@ -81,6 +87,10 @@ namespace ke
 		void createGraphicsPipelineLayout();
 		void createGraphicsPipeline();
 		void createRenderPass();
+		void createCommandPool();
+		void createCommandBuffer();
+		void createFramebuffers();
+		void createSyncObjects();
 		VkShaderModule createShaderModule(const std::vector<char>& code) const;
 	private:
 		VkInstance mInstance;
@@ -106,6 +116,17 @@ namespace ke
 
 		VkPipelineLayout mPipelineLayout;
 		VkPipeline mGraphicsPipeline;
+
+		VkCommandPool mCommandPool;
+		VkCommandBuffer mCommandBuffer;
+
+		std::vector<VkFramebuffer> mFramebuffers;
+
+		VkFence mInFlightFence;
+		VkSemaphore mImageAvailable;
+		VkSemaphore mRenderFinished;
+
+		uint32_t currentImageIndex;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};

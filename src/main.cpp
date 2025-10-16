@@ -22,6 +22,12 @@ int main(int argc, char** argv)
 
 	while (!window.shouldClose())
 	{
+		renderer.beginRecording();
+		// DRAW CALLS GO HERE
+		vkCmdDraw(renderer.getCommandBuffer(), 3, 1, 0, 0);
+
+		renderer.endRecording();
+		renderer.present();
 
 		window.pollEvents();
 	}	

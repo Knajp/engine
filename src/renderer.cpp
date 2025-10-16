@@ -48,6 +48,10 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createRenderPass();
 	createGraphicsPipelineLayout();
 	createGraphicsPipeline();
+	createFramebuffers();
+	createCommandPool();
+	createCommandBuffer();
+	createSyncObjects();
 }
 
 void ke::Renderer::createVulkanInstance()
@@ -550,12 +554,12 @@ void ke::Renderer::createGraphicsPipeline()
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
 	
 	VkViewport vp{};
-	vp.width = mSwapchainExtent.width;
-	vp.height = mSwapchainExtent.height;
+	vp.width = static_cast<float>(mSwapchainExtent.width);
+	vp.height = static_cast<float>(mSwapchainExtent.height);
 	vp.x = 0;
 	vp.y = 0;
 	vp.maxDepth = 1.0f;
-	vp.minDepth = -1.0f;
+	vp.minDepth = 0.0f;
 
 	VkRect2D scissor{};
 	scissor.extent = mSwapchainExtent;
@@ -592,6 +596,9 @@ void ke::Renderer::createGraphicsPipeline()
 	if (vkCreateGraphicsPipelines(mDevice, 0, 1, &createInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
 		mLogger.critical("Failed to create a graphics pipeline!");
 	mLogger.info("Created graphics pipeline!");
+
+	vkDestroyShaderModule(mDevice, vertexModule, nullptr);
+	vkDestroyShaderModule(mDevice, fragModule, nullptr);
 }
 
 void ke::Renderer::createRenderPass()
@@ -610,6 +617,14 @@ void ke::Renderer::createRenderPass()
 	colorRef.attachment = 0;
 	colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	VkSubpassDependency dependency{};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -622,10 +637,79 @@ void ke::Renderer::createRenderPass()
 	createInfo.pSubpasses = &subpass;
 	createInfo.attachmentCount = 1;
 	createInfo.pAttachments = &colorAtt;
+	createInfo.dependencyCount = 1;
+	createInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS)
 		mLogger.error("Failed to create render pass!");
 	mLogger.info("Created render pass.");
+}
+
+void ke::Renderer::createCommandPool()
+{
+	QueueFamilyIndices indices = findQueueFamilies(mPhysicalDevice);
+
+	VkCommandPoolCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	createInfo.queueFamilyIndex = indices.graphicsFamily.value();
+
+	if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mCommandPool) != VK_SUCCESS)
+		mLogger.error("Failed to create command pool!");
+	mLogger.info("Created command pool.");
+}
+
+void ke::Renderer::createCommandBuffer()
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandBufferCount = 1;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = mCommandPool;
+
+	if (vkAllocateCommandBuffers(mDevice, &allocInfo, &mCommandBuffer) != VK_SUCCESS)
+		mLogger.critical("Failed to allocate command buffer!");
+	mLogger.info("Created command buffer.");
+}
+
+void ke::Renderer::createFramebuffers()
+{
+	mFramebuffers.resize(mSwapchainImages.size());
+
+	for (size_t i = 0; i < mSwapchainImages.size(); i++)
+	{
+		VkImageView attachment[] = { mSwapchainImageViews[i] };
+
+		VkFramebufferCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		createInfo.height = mSwapchainExtent.height;
+		createInfo.width = mSwapchainExtent.width;
+		createInfo.layers = 1;
+		createInfo.attachmentCount = 1;
+		createInfo.pAttachments = attachment;
+		createInfo.renderPass = mRenderPass;
+
+		if (vkCreateFramebuffer(mDevice, &createInfo, nullptr, &mFramebuffers[i]) != VK_SUCCESS)
+			mLogger.error("Framebuffer creation failed!");
+		mLogger.info("Created framebuffer.");
+
+	}
+}
+
+void ke::Renderer::createSyncObjects()
+{
+	VkFenceCreateInfo fenceInfo{};
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	VkSemaphoreCreateInfo semaphoreInfo{};
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	if (vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFence) != VK_SUCCESS ||
+		vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageAvailable) != VK_SUCCESS ||
+		vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinished) != VK_SUCCESS)
+		mLogger.error("Failed to create at least one synchronisation object!");
+	mLogger.info("Created sync objects.");
 }
 
 VkShaderModule ke::Renderer::createShaderModule(const std::vector<char>& code) const
@@ -646,8 +730,18 @@ void ke::Renderer::cleanupRenderer()
 {
 	mLogger.trace("Initiating renderer cleanup.");
 
+	vkDestroySemaphore(mDevice, mImageAvailable, nullptr);
+	vkDestroySemaphore(mDevice, mRenderFinished, nullptr);
+	vkDestroyFence(mDevice, mInFlightFence, nullptr);
+	for (auto fb : mFramebuffers)
+		vkDestroyFramebuffer(mDevice, fb, nullptr);
+	vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
+	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+	for (auto imageView : mSwapchainImageViews)
+		vkDestroyImageView(mDevice, imageView, nullptr);
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 	vkDestroyDevice(mDevice, nullptr);
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
@@ -655,4 +749,94 @@ void ke::Renderer::cleanupRenderer()
 	vkDestroyInstance(mInstance, nullptr);
 	
 	mLogger.trace("Renderer cleanup done.");
+}
+
+void ke::Renderer::beginRecording()
+{
+	vkWaitForFences(mDevice, 1, &mInFlightFence, VK_TRUE, UINT64_MAX);
+	vkResetFences(mDevice, 1, &mInFlightFence);
+
+	vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailable, VK_NULL_HANDLE, &currentImageIndex);
+	vkResetCommandBuffer(mCommandBuffer, 0);
+
+	VkCommandBufferBeginInfo cBeginInfo{};
+	cBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	
+	if (vkBeginCommandBuffer(mCommandBuffer, &cBeginInfo) != VK_SUCCESS)
+		mLogger.critical("Failed to begin command buffer!");
+
+	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+
+	VkRenderPassBeginInfo rBeginInfo{};
+	rBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	rBeginInfo.clearValueCount = 1;
+	rBeginInfo.pClearValues = &clearColor;
+	rBeginInfo.framebuffer = mFramebuffers[currentImageIndex];
+	rBeginInfo.renderArea.extent = mSwapchainExtent;
+	rBeginInfo.renderArea.offset = { 0,0 };
+	rBeginInfo.renderPass = mRenderPass;
+
+	vkCmdBeginRenderPass(mCommandBuffer, &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+
+	VkViewport viewport{};
+	viewport.height = mSwapchainExtent.height;
+	viewport.width = mSwapchainExtent.width;
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(mCommandBuffer, 0, 1, &viewport);
+
+	VkRect2D scissor{};
+	scissor.extent = mSwapchainExtent;
+	scissor.offset = { 0,0 };
+	vkCmdSetScissor(mCommandBuffer, 0, 1, &scissor);
+}
+
+void ke::Renderer::endRecording()
+{
+	vkCmdEndRenderPass(mCommandBuffer);
+	if (vkEndCommandBuffer(mCommandBuffer) != VK_SUCCESS)
+		mLogger.error("Failed to record command buffer!");
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	VkSemaphore waitSemaphore[] = {mImageAvailable};
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphore;
+	submitInfo.pWaitDstStageMask = waitStages;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &mCommandBuffer;
+	VkSemaphore signalSemaphore[] = { mRenderFinished };
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphore;
+
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, mInFlightFence) != VK_SUCCESS)
+		mLogger.critical("Failed to submit to graphics queue!");
+
+}
+
+void ke::Renderer::present() const
+{
+	VkSemaphore waitSemaphore[] = { mRenderFinished };
+
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = waitSemaphore;
+	VkSwapchainKHR swapchains[] = { mSwapchain };
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapchains;
+	presentInfo.pResults = nullptr;
+	presentInfo.pImageIndices = &currentImageIndex;
+
+	vkQueuePresentKHR(presentQueue, &presentInfo);
+}
+
+VkCommandBuffer ke::Renderer::getCommandBuffer() const
+{
+	return mCommandBuffer;
 }
