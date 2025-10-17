@@ -4,6 +4,12 @@
 #include <set>
 #include "util.hpp"
 
+#ifndef NDEBUG
+bool enableLogging = true;
+#else
+bool enableLogging = false;
+#endif
+
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugUtilsMessenger)
 {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -67,7 +73,8 @@ void ke::Renderer::createVulkanInstance()
 	requiredExtensions.push_back("VK_KHR_win32_surface");
 	requiredExtensions.push_back("VK_KHR_surface");
 
-	if (checkInstanceExtensionSupport(requiredExtensions))
+
+	if (checkInstanceExtensionSupport(requiredExtensions) && enableLogging)
 		mLogger.info("All required instance extensions are supported.");
 
 	VkInstanceCreateInfo createInfo{};
@@ -89,9 +96,10 @@ void ke::Renderer::createVulkanInstance()
 	}
 	
 
-	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
+	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to create vulkan instance!");
-	mLogger.info("Created vulkan instance.");
+	if(enableLogging)
+		mLogger.info("Created vulkan instance.");
 }
 
 bool ke::Renderer::checkInstanceExtensionSupport(const std::vector<const char*>& exts)
@@ -111,7 +119,7 @@ bool ke::Renderer::checkInstanceExtensionSupport(const std::vector<const char*>&
 				return std::strcmp(prop.extensionName, ext) == 0;
 			});
 
-		if (it == supportedExtensions.end())
+		if (it == supportedExtensions.end() && enableLogging)
 		{
 			mLogger.error("A required instance extension was not found in the supported extension array.");
 			failedCheck = true;
@@ -138,7 +146,7 @@ bool ke::Renderer::checkValidationLayerSupport()
 				return std::strcmp(prop.layerName, layer) == 0;
 			});
 
-		if (it == supportedLayers.end())
+		if (it == supportedLayers.end() && enableLogging)
 		{
 			mLogger.error("A validation layer is not supported.");
 			failedCheck = true;
@@ -175,7 +183,7 @@ void ke::Renderer::setupDebugMessenger()
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	createInfo.pfnUserCallback = debugCallback;
 
-	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
+	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to create a debug utils messenger!");
 }
 
@@ -186,7 +194,7 @@ void ke::Renderer::pickPhysicalDevice()
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
-	if (deviceCount == 0)
+	if (deviceCount == 0 && enableLogging)
 		mLogger.critical("No physical devices found on this machine.");
 
 	std::map<int, VkPhysicalDevice> candidates;
@@ -197,12 +205,12 @@ void ke::Renderer::pickPhysicalDevice()
 		candidates.insert(std::make_pair(score, device));
 	}
 
-	if (candidates.rbegin()->first > 0)
+	if (candidates.rbegin()->first > 0 && enableLogging)
 	{
 		mPhysicalDevice = candidates.rbegin()->second;
 		mLogger.info(("Chosen physical device has score of " + std::to_string(candidates.rbegin()->first)));
 	}
-	else
+	else if(enableLogging)
 		mLogger.critical("Failed to find a suitable physical device!");
 }
 
@@ -298,10 +306,11 @@ void ke::Renderer::createLogicalDevice()
 	else
 		createInfo.enabledLayerCount = 0;
 
-	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
+	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to create logical device!");
 
-	mLogger.info("Created a logical device.");
+	if(enableLogging)
+		mLogger.info("Created a logical device.");
 
 	vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
 	vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &presentQueue);
@@ -314,10 +323,11 @@ void ke::Renderer::createWindowSurface(GLFWwindow* window)
 	createInfo.hwnd = glfwGetWin32Window(window);
 	createInfo.hinstance = GetModuleHandle(nullptr);
 
-	if (vkCreateWin32SurfaceKHR(mInstance, &createInfo, nullptr, &mSurface) != VK_SUCCESS)
+	if (vkCreateWin32SurfaceKHR(mInstance, &createInfo, nullptr, &mSurface) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create window surface.");
 
-	mLogger.info("Created a window surface.");
+	if(enableLogging)
+		mLogger.info("Created a window surface.");
 }
 
 bool ke::Renderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
@@ -367,10 +377,12 @@ VkSurfaceFormatKHR ke::Renderer::chooseSurfaceFormat(const std::vector<VkSurface
 	for (const auto& format : availableFormats)
 		if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
-			mLogger.info("Desired format is available and chosen.");
+			if(enableLogging)
+				mLogger.info("Desired format is available and chosen.");
 			return format;
 		}
-	mLogger.warn("Desired format is not available.");
+	if(enableLogging)
+		mLogger.warn("Desired format is not available.");
 	return availableFormats[0];
 }
 
@@ -379,10 +391,12 @@ VkPresentModeKHR ke::Renderer::chooseSurfacePresentMode(const std::vector<VkPres
 	for (const auto& presentMode : availablePresentModes)
 		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
 		{
-			mLogger.info("Mailbox present mode is available and chosen.");
+			if(enableLogging)
+				mLogger.info("Mailbox present mode is available and chosen.");
 			return presentMode;
 		}
-	mLogger.warn("Mailbox present mode is not available, defaulting to FIFO.");
+	if(enableLogging)
+		mLogger.warn("Mailbox present mode is not available, defaulting to FIFO.");
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
@@ -443,9 +457,10 @@ void ke::Renderer::createSwapchain(GLFWwindow* pWindow)
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
 	createInfo.clipped = VK_TRUE;
 
-	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS)
+	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to create Swapchain!");
-	mLogger.info("Created swapchain.");
+	if(enableLogging)
+		mLogger.info("Created swapchain.");
 
 	vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, nullptr);
 	mSwapchainImages.resize(imageCount);
@@ -477,10 +492,11 @@ void ke::Renderer::createSwapchainImageViews()
 	{
 		createInfo.image = mSwapchainImages[i];
 		
-		if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS)
+		if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS && enableLogging)
 			mLogger.error("Failed to create an image view.");
 	}
-	mLogger.info("Created swapchain image views.");
+	if(enableLogging)
+		mLogger.info("Created swapchain image views.");
 }
 
 void ke::Renderer::createGraphicsPipelineLayout()
@@ -490,9 +506,10 @@ void ke::Renderer::createGraphicsPipelineLayout()
 	createInfo.pushConstantRangeCount = 0;
 	createInfo.setLayoutCount = 0;
 	
-	if (vkCreatePipelineLayout(mDevice, &createInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
+	if (vkCreatePipelineLayout(mDevice, &createInfo, nullptr, &mPipelineLayout) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create graphics pipeline layout!");
-	mLogger.info("Created graphics pipeline layout.");
+	if(enableLogging)
+		mLogger.info("Created graphics pipeline layout.");
 }
 
 void ke::Renderer::createGraphicsPipeline()
@@ -581,9 +598,10 @@ void ke::Renderer::createGraphicsPipeline()
 	createInfo.pVertexInputState = &vertexInput;
 	createInfo.renderPass = mRenderPass;
 
-	if (vkCreateGraphicsPipelines(mDevice, 0, 1, &createInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
+	if (vkCreateGraphicsPipelines(mDevice, 0, 1, &createInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to create a graphics pipeline!");
-	mLogger.info("Created graphics pipeline!");
+	if(enableLogging)
+		mLogger.info("Created graphics pipeline!");
 
 	vkDestroyShaderModule(mDevice, vertexModule, nullptr);
 	vkDestroyShaderModule(mDevice, fragModule, nullptr);
@@ -628,9 +646,10 @@ void ke::Renderer::createRenderPass()
 	createInfo.dependencyCount = 1;
 	createInfo.pDependencies = &dependency;
 
-	if (vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS)
+	if (vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create render pass!");
-	mLogger.info("Created render pass.");
+	if(enableLogging)
+		mLogger.info("Created render pass.");
 }
 
 void ke::Renderer::createCommandPool()
@@ -642,9 +661,10 @@ void ke::Renderer::createCommandPool()
 	createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	createInfo.queueFamilyIndex = indices.graphicsFamily.value();
 
-	if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mCommandPool) != VK_SUCCESS)
+	if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mCommandPool) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create command pool!");
-	mLogger.info("Created command pool.");
+	if(enableLogging)
+		mLogger.info("Created command pool.");
 }
 
 void ke::Renderer::createCommandBuffer()
@@ -657,9 +677,10 @@ void ke::Renderer::createCommandBuffer()
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandPool = mCommandPool;
 
-	if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to allocate command buffer!");
-	mLogger.info("Created command buffer.");
+	if(enableLogging)
+		mLogger.info("Created command buffer.");
 }
 
 void ke::Renderer::createFramebuffers()
@@ -679,15 +700,19 @@ void ke::Renderer::createFramebuffers()
 		createInfo.pAttachments = attachment;
 		createInfo.renderPass = mRenderPass;
 
-		if (vkCreateFramebuffer(mDevice, &createInfo, nullptr, &mFramebuffers[i]) != VK_SUCCESS)
+		if (vkCreateFramebuffer(mDevice, &createInfo, nullptr, &mFramebuffers[i]) != VK_SUCCESS && enableLogging)
 			mLogger.error("Framebuffer creation failed!");
-		mLogger.info("Created framebuffer.");
+		if(enableLogging)
+			mLogger.info("Created framebuffer.");
 
 	}
 }
 
 void ke::Renderer::createSyncObjects()
 {
+	mInFlightFences.resize(maxFramesInFlight);
+	mImageReadySemaphores.resize(maxFramesInFlight);
+	mRenderFinishedSemaphores.resize(maxFramesInFlight);
 	VkFenceCreateInfo fenceInfo{};
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
@@ -695,11 +720,16 @@ void ke::Renderer::createSyncObjects()
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	if (vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFence) != VK_SUCCESS ||
-		vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageAvailable) != VK_SUCCESS ||
-		vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinished) != VK_SUCCESS)
-		mLogger.error("Failed to create at least one synchronisation object!");
-	mLogger.info("Created sync objects.");
+	for (size_t i = 0; i < maxFramesInFlight; i++)
+	{
+		if (vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageReadySemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinishedSemaphores[i]) != VK_SUCCESS && enableLogging)
+			mLogger.error("Failed to create at least one synchronisation object!");
+	}
+	
+	if(enableLogging)
+		mLogger.info("Created sync objects.");
 }
 
 VkShaderModule ke::Renderer::createShaderModule(const std::vector<char>& code) const
@@ -710,30 +740,62 @@ VkShaderModule ke::Renderer::createShaderModule(const std::vector<char>& code) c
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 	VkShaderModule mod;
-	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &mod) != VK_SUCCESS)
+	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &mod) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create a shader module.");
 
 	return mod;
 }
 
-void ke::Renderer::cleanupRenderer()
+void ke::Renderer::recreateSwapchain(GLFWwindow* pWindow)
 {
-	mLogger.trace("Initiating renderer cleanup.");
+	int width, height;
+	glfwGetFramebufferSize(pWindow, &width, &height);
+	while (width == 0 || height == 0)
+	{
+		glfwGetFramebufferSize(pWindow, &width, &height);
+		glfwWaitEvents();
+	}
 
-	vkDestroySemaphore(mDevice, mImageAvailable, nullptr);
-	vkDestroySemaphore(mDevice, mRenderFinished, nullptr);
-	vkDestroyFence(mDevice, mInFlightFence, nullptr);
+	vkDeviceWaitIdle(mDevice);
+
+	cleanupSwapchain();
+
+	createSwapchain(pWindow);
+	createSwapchainImageViews();
+	createFramebuffers();
+
+}
+
+void ke::Renderer::cleanupSwapchain()
+{
 	for (auto fb : mFramebuffers)
 		vkDestroyFramebuffer(mDevice, fb, nullptr);
-	vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
+	for (auto imageView : mSwapchainImageViews)
+		vkDestroyImageView(mDevice, imageView, nullptr);
+	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
+}
+
+void ke::Renderer::cleanupRenderer()
+{
+	vkDeviceWaitIdle(mDevice);
+	if(enableLogging)
+	mLogger.trace("Initiating renderer cleanup.");
+
+	cleanupSwapchain();
+
+	for (size_t i = 0; i < maxFramesInFlight; i++)
+	{
+		vkDestroySemaphore(mDevice, mImageReadySemaphores[i], nullptr);
+		vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
+		vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
+	}
+	
+	vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
 	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
 	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-	for (auto imageView : mSwapchainImageViews)
-		vkDestroyImageView(mDevice, imageView, nullptr);
-	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
-	vkDestroyDevice(mDevice, nullptr);
+	
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
 	vkDestroyInstance(mInstance, nullptr);
@@ -741,18 +803,29 @@ void ke::Renderer::cleanupRenderer()
 	mLogger.trace("Renderer cleanup done.");
 }
 
-void ke::Renderer::beginRecording()
+void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 {
-	vkWaitForFences(mDevice, 1, &mInFlightFence, VK_TRUE, UINT64_MAX);
-	vkResetFences(mDevice, 1, &mInFlightFence);
+	vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
 
-	vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailable, VK_NULL_HANDLE, &currentImageIndex);
-	vkResetCommandBuffer(mCommandBuffer, 0);
+	VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageReadySemaphores[currentFrameInFlight], VK_NULL_HANDLE, &currentImageIndex);
+
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || hasResized)
+	{
+		framebufferResized = false;
+		recreateSwapchain(pWindow);
+		recreatedSwapchain = true;
+	}
+	else recreatedSwapchain = false;
+		
+	vkResetFences(mDevice, 1, &mInFlightFences[currentFrameInFlight]);
+
+	vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
 
 	VkCommandBufferBeginInfo cBeginInfo{};
 	cBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	
-	if (vkBeginCommandBuffer(mCommandBuffer, &cBeginInfo) != VK_SUCCESS)
+	if (vkBeginCommandBuffer(mCommandBuffers[currentFrameInFlight], &cBeginInfo) != VK_SUCCESS)
 		mLogger.critical("Failed to begin command buffer!");
 
 	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
@@ -766,9 +839,9 @@ void ke::Renderer::beginRecording()
 	rBeginInfo.renderArea.offset = { 0,0 };
 	rBeginInfo.renderPass = mRenderPass;
 
-	vkCmdBeginRenderPass(mCommandBuffer, &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
 	VkViewport viewport{};
 	viewport.height = mSwapchainExtent.height;
@@ -777,41 +850,44 @@ void ke::Renderer::beginRecording()
 	viewport.y = 0.0f;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(mCommandBuffer, 0, 1, &viewport);
+	vkCmdSetViewport(mCommandBuffers[currentFrameInFlight], 0, 1, &viewport);
 
 	VkRect2D scissor{};
 	scissor.extent = mSwapchainExtent;
 	scissor.offset = { 0,0 };
-	vkCmdSetScissor(mCommandBuffer, 0, 1, &scissor);
+	vkCmdSetScissor(mCommandBuffers[currentFrameInFlight], 0, 1, &scissor);
 }
 
 void ke::Renderer::endRecording()
 {
-	vkCmdEndRenderPass(mCommandBuffer);
-	if (vkEndCommandBuffer(mCommandBuffer) != VK_SUCCESS)
+	if (recreatedSwapchain) return;
+
+	vkCmdEndRenderPass(mCommandBuffers[currentFrameInFlight]);
+	if (vkEndCommandBuffer(mCommandBuffers[currentFrameInFlight]) != VK_SUCCESS)
 		mLogger.error("Failed to record command buffer!");
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	VkSemaphore waitSemaphore[] = {mImageAvailable};
+	VkSemaphore waitSemaphore[] = {mImageReadySemaphores[currentFrameInFlight]};
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphore;
 	submitInfo.pWaitDstStageMask = waitStages;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &mCommandBuffer;
-	VkSemaphore signalSemaphore[] = { mRenderFinished };
+	submitInfo.pCommandBuffers = &mCommandBuffers[currentFrameInFlight];
+	VkSemaphore signalSemaphore[] = { mRenderFinishedSemaphores[currentFrameInFlight]};
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphore;
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, mInFlightFence) != VK_SUCCESS)
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, mInFlightFences[currentFrameInFlight]) != VK_SUCCESS)
 		mLogger.critical("Failed to submit to graphics queue!");
 
 }
 
-void ke::Renderer::present() const
+void ke::Renderer::present(GLFWwindow* pWindow)
 {
-	VkSemaphore waitSemaphore[] = { mRenderFinished };
+	if (recreatedSwapchain) return;
+	VkSemaphore waitSemaphore[] = { mRenderFinishedSemaphores[currentFrameInFlight]};
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -823,10 +899,17 @@ void ke::Renderer::present() const
 	presentInfo.pResults = nullptr;
 	presentInfo.pImageIndices = &currentImageIndex;
 
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR)
+		recreateSwapchain(pWindow);
+}
+
+void ke::Renderer::advanceFrame()
+{
+	currentFrameInFlight = (currentFrameInFlight + 1) % maxFramesInFlight;
 }
 
 VkCommandBuffer ke::Renderer::getCommandBuffer() const
 {
-	return mCommandBuffer;
+	return mCommandBuffers[currentFrameInFlight];
 }

@@ -19,6 +19,9 @@ namespace ke
 		void pollEvents();
 
 		GLFWwindow* getWindow() const;
+
+		bool hasResized() const;
+		void setResized();
 	private:
 		const uint16_t mWidth;
 		const uint16_t mHeight;
@@ -26,6 +29,7 @@ namespace ke
 		GLFWwindow* pWindow;
 		std::string mWindowName;
 
+		bool mHasResized = false;
 	private:
 		void initWindow();
 	};

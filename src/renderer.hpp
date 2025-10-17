@@ -59,10 +59,11 @@ namespace ke
 
 		void cleanupRenderer();
 
-		void beginRecording();
+		void beginRecording(GLFWwindow* pWindow, bool hasResized);
 		void endRecording();
-		void present() const;
+		void present(GLFWwindow* pWindow);
 
+		void advanceFrame();
 		VkCommandBuffer getCommandBuffer() const;
 	private:
 		Renderer() = default;
@@ -92,6 +93,8 @@ namespace ke
 		void createFramebuffers();
 		void createSyncObjects();
 		VkShaderModule createShaderModule(const std::vector<char>& code) const;
+		void recreateSwapchain(GLFWwindow* pWindow);
+		void cleanupSwapchain();
 	private:
 		VkInstance mInstance;
 
@@ -127,7 +130,11 @@ namespace ke
 		std::vector<VkSemaphore> mRenderFinishedSemaphores;
 
 		uint32_t currentImageIndex;
+		uint32_t currentFrameInFlight = 0;
 		const uint8_t maxFramesInFlight = 2;
+
+		bool recreatedSwapchain = false;
+		bool framebufferResized = false;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};
