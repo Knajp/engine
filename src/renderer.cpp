@@ -546,31 +546,19 @@ void ke::Renderer::createGraphicsPipeline()
 
 	VkPipelineRasterizationStateCreateInfo rasterizer{};
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	
-	VkViewport vp{};
-	vp.width = static_cast<float>(mSwapchainExtent.width);
-	vp.height = static_cast<float>(mSwapchainExtent.height);
-	vp.x = 0;
-	vp.y = 0;
-	vp.maxDepth = 1.0f;
-	vp.minDepth = 0.0f;
-
-	VkRect2D scissor{};
-	scissor.extent = mSwapchainExtent;
-	scissor.offset = { 0,0 };
 
 	VkPipelineViewportStateCreateInfo viewport{};
 	viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewport.scissorCount = 1;
 	viewport.viewportCount = 1;
-	viewport.pViewports = &vp;
-	viewport.pScissors = &scissor;
+	viewport.pViewports = nullptr;
+	viewport.pScissors = nullptr;
 
 	VkPipelineVertexInputStateCreateInfo vertexInput{};
 	vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -661,13 +649,15 @@ void ke::Renderer::createCommandPool()
 
 void ke::Renderer::createCommandBuffer()
 {
+	mCommandBuffers.resize(maxFramesInFlight);
+
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandBufferCount = 1;
+	allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandPool = mCommandPool;
 
-	if (vkAllocateCommandBuffers(mDevice, &allocInfo, &mCommandBuffer) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
 		mLogger.critical("Failed to allocate command buffer!");
 	mLogger.info("Created command buffer.");
 }

@@ -153,7 +153,6 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\window.cpp" />
-    <ClCompile Include="vendor\include\vulkan\vulkan.cppm" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\logger.hpp" />

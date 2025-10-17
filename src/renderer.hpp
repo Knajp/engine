@@ -118,15 +118,16 @@ namespace ke
 		VkPipeline mGraphicsPipeline;
 
 		VkCommandPool mCommandPool;
-		VkCommandBuffer mCommandBuffer;
+		std::vector<VkCommandBuffer> mCommandBuffers;
 
 		std::vector<VkFramebuffer> mFramebuffers;
 
-		VkFence mInFlightFence;
-		VkSemaphore mImageAvailable;
-		VkSemaphore mRenderFinished;
+		std::vector<VkFence> mInFlightFences;
+		std::vector<VkSemaphore> mImageReadySemaphores;
+		std::vector<VkSemaphore> mRenderFinishedSemaphores;
 
 		uint32_t currentImageIndex;
+		const uint8_t maxFramesInFlight = 2;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 	};
