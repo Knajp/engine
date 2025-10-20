@@ -65,6 +65,8 @@ namespace ke
 
 		void advanceFrame();
 		VkCommandBuffer getCommandBuffer() const;
+
+		static void createVertexBuffer(VkBuffer& buffer, const std::vector<ke::str::Vertex>& vertices);
 	private:
 		Renderer() = default;
 

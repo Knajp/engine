@@ -577,10 +577,15 @@ void ke::Renderer::createGraphicsPipeline()
 	viewport.pViewports = nullptr;
 	viewport.pScissors = nullptr;
 
+	auto bindingDesc = ke::str::Vertex::getInputBindingDescription();
+	auto attribDescs = ke::str::Vertex::getInputAttributeDescriptions();
+
 	VkPipelineVertexInputStateCreateInfo vertexInput{};
 	vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInput.vertexAttributeDescriptionCount = 0;
-	vertexInput.vertexBindingDescriptionCount = 0;
+	vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribDescs.size());
+	vertexInput.pVertexAttributeDescriptions = attribDescs.data();
+	vertexInput.vertexBindingDescriptionCount = 1;
+	vertexInput.pVertexBindingDescriptions = &bindingDesc;
 
 	VkGraphicsPipelineCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -798,6 +803,7 @@ void ke::Renderer::cleanupRenderer()
 	
 	DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+	vkDestroyDevice(mDevice, nullptr);
 	vkDestroyInstance(mInstance, nullptr);
 	
 	mLogger.trace("Renderer cleanup done.");
@@ -912,4 +918,18 @@ void ke::Renderer::advanceFrame()
 VkCommandBuffer ke::Renderer::getCommandBuffer() const
 {
 	return mCommandBuffers[currentFrameInFlight];
+}
+
+void ke::Renderer::createVertexBuffer(VkBuffer& buffer, const std::vector<ke::str::Vertex>& vertices)
+{
+	VkBufferCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size = sizeof(vertices[0]) * vertices.size();
+	createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(getInstance().mDevice, &createInfo, nullptr, &buffer) != VK_SUCCESS && enableLogging)
+		getInstance().mLogger.error("Failed to create a vertex buffer.");
+	if (enableLogging)
+		getInstance().mLogger.info("Created vertex buffer.");
 }
