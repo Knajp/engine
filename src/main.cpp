@@ -2,7 +2,7 @@
 #include "logger.hpp"
 #include "renderer.hpp"
 #include <iostream>
-
+#include "Rect.hpp"
 int main(int argc, char** argv)
 {
 	ke::Window::init();
@@ -26,18 +26,26 @@ int main(int argc, char** argv)
 #ifndef NDEBUG
 	logger.info("Finished Vulkan initiation.");
 #endif
-	while (!window.shouldClose())
+
 	{
-		renderer.beginRecording(window.getWindow(), window.hasResized());
-		// DRAW CALLS GO HERE
-		vkCmdDraw(renderer.getCommandBuffer(), 3, 1, 0, 0);
-		
-		renderer.endRecording();
-		renderer.present(window.getWindow());
+		ke::prim::Rect rectangle({ -0.5f, -0.5f }, { 1.0f, 1.0f });
 
-		window.pollEvents();
-		renderer.advanceFrame();
-	}	
+		while (!window.shouldClose())
+		{
+			renderer.beginRecording(window.getWindow(), window.hasResized());
+			// DRAW CALLS GO HERE
+			rectangle.Draw(renderer.getCommandBuffer());
 
+			renderer.endRecording();
+			renderer.present(window.getWindow());
+
+
+			renderer.destroyRedundantBuffers();
+
+			window.pollEvents();
+			renderer.advanceFrame();
+		}
+	}
+	   
 	renderer.cleanupRenderer();
 }

@@ -10,7 +10,7 @@ namespace ke
 {
 	namespace util
 	{
-		std::vector<char> readFile(const std::string& filename)
+		inline std::vector<char> readFile(const std::string& filename)
 		{
 			std::ifstream file(filename, std::ios::ate | std::ios::binary);;
 			if (!file.is_open())
@@ -39,6 +39,8 @@ namespace ke
 				desc.binding = 0;
 				desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 				desc.stride = sizeof(Vertex);
+
+				return desc;
 			}
 
 			static std::array<VkVertexInputAttributeDescription, 2> getInputAttributeDescriptions()
@@ -54,6 +56,8 @@ namespace ke
 				descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 				descs[1].location = 1;
 				descs[1].offset = offsetof(Vertex, color);
+
+				return descs;
 			}
 		};
 	}

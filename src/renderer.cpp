@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <map>
 #include <set>
-#include "util.hpp"
 
 #ifndef NDEBUG
 bool enableLogging = true;
@@ -780,12 +779,92 @@ void ke::Renderer::cleanupSwapchain()
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 }
 
+void ke::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
+	VkBufferCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size = size;
+	createInfo.usage = flags;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(getInstance().mDevice, &createInfo, nullptr, &buffer) != VK_SUCCESS && enableLogging)
+		mLogger.error("Failed to create a buffer.");
+	if (enableLogging)
+		mLogger.info("Created buffer.");
+
+	VkMemoryRequirements memReq{};
+	vkGetBufferMemoryRequirements(mDevice, buffer, &memReq);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memReq.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, memoryFlags);
+
+	if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+		mLogger.error("Failed to allocate vertex buffer memory.");
+
+	vkBindBufferMemory(mDevice, buffer, bufferMemory, 0);
+}
+
+void ke::Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = mCommandPool;
+	allocInfo.commandBufferCount = 1;
+	
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(mDevice, &allocInfo, &commandBuffer);
+	mLogger.info("Allocated buffer copy command buffer.");
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	
+
+	VkBufferCopy copy{};
+	copy.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copy);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(graphicsQueue);
+
+	vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
+}
+
+uint32_t ke::Renderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags flags)
+{
+	VkPhysicalDeviceMemoryProperties memProp;
+	vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProp);
+
+	for (uint32_t i = 0; i < memProp.memoryTypeCount; i++)
+	{
+		if (typeFilter & (1 << i) && (memProp.memoryTypes[i].propertyFlags & flags) == flags)
+			return i;
+	}
+
+	mLogger.error("Failed to find a suitable memory type.");
+
+	return -1;
+}
+
 void ke::Renderer::cleanupRenderer()
 {
 	vkDeviceWaitIdle(mDevice);
 	if(enableLogging)
 	mLogger.trace("Initiating renderer cleanup.");
 
+	destroyRedundantBuffers();
 	cleanupSwapchain();
 
 	for (size_t i = 0; i < maxFramesInFlight; i++)
@@ -850,8 +929,8 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
 	VkViewport viewport{};
-	viewport.height = mSwapchainExtent.height;
-	viewport.width = mSwapchainExtent.width;
+	viewport.height = static_cast<float>(mSwapchainExtent.height);
+	viewport.width = static_cast<float>(mSwapchainExtent.width);
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
 	viewport.minDepth = 0.0f;
@@ -920,16 +999,69 @@ VkCommandBuffer ke::Renderer::getCommandBuffer() const
 	return mCommandBuffers[currentFrameInFlight];
 }
 
-void ke::Renderer::createVertexBuffer(VkBuffer& buffer, const std::vector<ke::str::Vertex>& vertices)
+VkDevice ke::Renderer::getDevice()
 {
-	VkBufferCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	createInfo.size = sizeof(vertices[0]) * vertices.size();
-	createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	return ke::Renderer::getInstance().mDevice;
+}
 
-	if (vkCreateBuffer(getInstance().mDevice, &createInfo, nullptr, &buffer) != VK_SUCCESS && enableLogging)
-		getInstance().mLogger.error("Failed to create a vertex buffer.");
-	if (enableLogging)
-		getInstance().mLogger.info("Created vertex buffer.");
+void ke::Renderer::createVertexBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory, const std::vector<ke::str::Vertex>& vertices)
+{
+	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+	
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	getInstance().createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(getInstance().mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices.data(), (size_t)bufferSize);
+	vkUnmapMemory(getInstance().mDevice, stagingBufferMemory);
+
+	getInstance().createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
+	getInstance().copyBuffer(stagingBuffer, buffer, bufferSize);
+
+	vkDestroyBuffer(ke::Renderer::getDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(ke::Renderer::getDevice(), stagingBufferMemory, nullptr);
+
+}
+
+void ke::Renderer::createIndexBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory, const std::vector<uint16_t>& indices)
+{
+	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	getInstance().createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(getInstance().mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, indices.data(), (size_t)bufferSize);
+	vkUnmapMemory(getInstance().mDevice, stagingBufferMemory);
+
+	getInstance().createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer, bufferMemory);
+	getInstance().copyBuffer(stagingBuffer, buffer, bufferSize);
+
+	vkDestroyBuffer(ke::Renderer::getDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(ke::Renderer::getDevice(), stagingBufferMemory, nullptr);
+}
+
+void ke::Renderer::submitBufferForDestruction(std::pair<VkBuffer, VkDeviceMemory> buffer)
+{
+	mDestroyVector.push_back(buffer);
+}
+
+void ke::Renderer::destroyRedundantBuffers()
+{
+	if (mDestroyVector.empty()) return;
+
+	vkDeviceWaitIdle(mDevice);
+
+	for (const auto& buffer : mDestroyVector)
+	{
+		vkDestroyBuffer(mDevice, buffer.first, nullptr);
+		vkFreeMemory(mDevice, buffer.second, nullptr);
+	}
+	
+	mDestroyVector.clear();
+	mDestroyVector.resize(0);
 }

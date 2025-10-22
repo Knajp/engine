@@ -10,6 +10,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+#include "util.hpp"
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -66,7 +67,12 @@ namespace ke
 		void advanceFrame();
 		VkCommandBuffer getCommandBuffer() const;
 
-		static void createVertexBuffer(VkBuffer& buffer, const std::vector<ke::str::Vertex>& vertices);
+		static VkDevice getDevice();
+		static void createVertexBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory, const std::vector<ke::str::Vertex>& vertices);
+		static void createIndexBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory, const std::vector<uint16_t>& indices);
+
+		void submitBufferForDestruction(std::pair<VkBuffer, VkDeviceMemory> buffer);
+		void destroyRedundantBuffers();
 	private:
 		Renderer() = default;
 
@@ -97,6 +103,11 @@ namespace ke
 		VkShaderModule createShaderModule(const std::vector<char>& code) const;
 		void recreateSwapchain(GLFWwindow* pWindow);
 		void cleanupSwapchain();
+		
+		void createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& memory);
+		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags flags);
 	private:
 		VkInstance mInstance;
 
@@ -139,5 +150,6 @@ namespace ke
 		bool framebufferResized = false;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
+		std::vector<std::pair<VkBuffer, VkDeviceMemory>> mDestroyVector;
 	};
 }
