@@ -3,6 +3,8 @@
 #include "renderer.hpp"
 #include <iostream>
 #include "Rect.hpp"
+#include "graphicalInterface.hpp"
+
 int main(int argc, char** argv)
 {
 	ke::Window::init();
@@ -28,17 +30,16 @@ int main(int argc, char** argv)
 #endif
 
 	{
-		ke::prim::Rect rectangle({ -0.5f, -0.5f }, { 1.0f, 1.0f });
+		ke::ui::Button exitButton({ 0.9f, -1.0f }, { 0.1f, 0.1f }, { 0.2f, 0.2f, 0.2f });
 
 		while (!window.shouldClose())
 		{
 			renderer.beginRecording(window.getWindow(), window.hasResized());
 			// DRAW CALLS GO HERE
-			rectangle.Draw(renderer.getCommandBuffer());
+			exitButton.Draw(renderer.getCommandBuffer());
 
 			renderer.endRecording();
 			renderer.present(window.getWindow());
-
 
 			renderer.destroyRedundantBuffers();
 

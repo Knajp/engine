@@ -171,6 +171,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\graphicalInterface.cpp" />
     <ClCompile Include="src\logger.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Rect.cpp" />
@@ -178,6 +179,7 @@
     <ClCompile Include="src\window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\graphicalInterface.hpp" />
     <ClInclude Include="src\logger.hpp" />
     <ClInclude Include="src\Rect.hpp" />
     <ClInclude Include="src\renderer.hpp" />

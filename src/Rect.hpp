@@ -12,21 +12,26 @@ namespace ke
 		{
 		public:
 			Rect() = default;
-			Rect(glm::vec2 _xy, glm::vec2 _extent);
+			Rect(glm::vec2 _xy, glm::vec2 _extent, glm::vec3 _color);
 			~Rect();
+
+			Rect(const Rect& other);
+			void operator=(const Rect& other);
 
 			glm::vec2 xy;
 			glm::vec2 extent;
+			glm::vec3 color;
 
 			void Draw(VkCommandBuffer commandBuffer) const;
+			bool intersects(glm::vec2 point) const;
 		private:
 			std::vector<ke::str::Vertex> mVertices;
 			std::vector<uint16_t> mIndices;
 
-			VkBuffer mVertexBuffer;
-			VkDeviceMemory mVertexBufferMemory;
-			VkBuffer mIndexBuffer;
-			VkDeviceMemory mIndexBufferMemory;
+			VkBuffer mVertexBuffer = VK_NULL_HANDLE;
+			VkDeviceMemory mVertexBufferMemory = VK_NULL_HANDLE;
+			VkBuffer mIndexBuffer = VK_NULL_HANDLE;
+			VkDeviceMemory mIndexBufferMemory = VK_NULL_HANDLE;
 
 			void createVulkanBuffers();
 		};

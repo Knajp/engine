@@ -57,7 +57,8 @@ void ke::Window::initWindow()
 {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
 	pWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
 	glfwSetWindowUserPointer(pWindow, this);
 	glfwSetFramebufferSizeCallback(pWindow, framebufferResizeCallback);
