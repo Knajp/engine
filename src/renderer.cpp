@@ -770,6 +770,8 @@ void ke::Renderer::recreateSwapchain(GLFWwindow* pWindow)
 	createSwapchainImageViews();
 	createFramebuffers();
 
+	recreateSemaphores();
+
 	glfwFocusWindow(pWindow);
 
 }
@@ -781,6 +783,18 @@ void ke::Renderer::cleanupSwapchain()
 	for (auto imageView : mSwapchainImageViews)
 		vkDestroyImageView(mDevice, imageView, nullptr);
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
+}
+
+void ke::Renderer::recreateSemaphores()
+{
+	for (auto sem : mImageReadySemaphores)
+		vkDestroySemaphore(mDevice, sem, nullptr);
+
+	VkSemaphoreCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	for (size_t i = 0; i < maxFramesInFlight; i++)
+		vkCreateSemaphore(mDevice, &createInfo, nullptr, &mImageReadySemaphores[i]);
 }
 
 void ke::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
@@ -895,15 +909,17 @@ void ke::Renderer::cleanupRenderer()
 void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 {
 	vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
-
 	VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageReadySemaphores[currentFrameInFlight], VK_NULL_HANDLE, &currentImageIndex);
-
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || hasResized)
 	{
 		framebufferResized = false;
 		recreateSwapchain(pWindow);
+		for (size_t i = 0; i < mCommandBuffers.size(); i++) {
+			vkResetCommandBuffer(mCommandBuffers[i], 0);
+		}
 		recreatedSwapchain = true;
+		return;
 	}
 	else recreatedSwapchain = false;
 		
@@ -950,11 +966,11 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 void ke::Renderer::endRecording()
 {
 	if (recreatedSwapchain) return;
-
+	
 	vkCmdEndRenderPass(mCommandBuffers[currentFrameInFlight]);
 	if (vkEndCommandBuffer(mCommandBuffers[currentFrameInFlight]) != VK_SUCCESS)
 		mLogger.error("Failed to record command buffer!");
-
+	
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	VkSemaphore waitSemaphore[] = {mImageReadySemaphores[currentFrameInFlight]};
@@ -1068,4 +1084,9 @@ void ke::Renderer::destroyRedundantBuffers()
 	
 	mDestroyVector.clear();
 	mDestroyVector.resize(0);
+}
+
+bool ke::Renderer::hasRecreatedSwapchain() const
+{
+	return recreatedSwapchain;
 }

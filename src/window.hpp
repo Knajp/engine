@@ -22,7 +22,10 @@ namespace ke
 		GLFWwindow* getWindow() const;
 
 		bool hasResized() const;
-		void setResized();
+		void setResized(bool val);
+
+		bool hasIconified() const;
+		void setIconified(bool val);
 
 		void processInput();
 
@@ -37,6 +40,7 @@ namespace ke
 		std::string mWindowName;
 
 		bool mHasResized = false;
+		bool mHasIconified = false;
 
 		std::vector<std::shared_ptr<ke::ui::Button>> mInteractable;
 	private:

@@ -48,18 +48,27 @@ int main(int argc, char** argv)
 		{
 			window.processInput();
 
-			renderer.beginRecording(window.getWindow(), window.hasResized());
-			// DRAW CALLS GO HERE
-			exitButton->Draw(renderer.getCommandBuffer());
-			minimizeButton->Draw(renderer.getCommandBuffer());
+			if (!window.hasIconified())
+			{
+				renderer.beginRecording(window.getWindow(), window.hasResized());
+				if (renderer.hasRecreatedSwapchain())
+				{
+					window.setResized(false);
+					continue;
+				}
+				// DRAW CALLS GO HERE
+				exitButton->Draw(renderer.getCommandBuffer());
+				minimizeButton->Draw(renderer.getCommandBuffer());
 
-			renderer.endRecording();
-			renderer.present(window.getWindow());
+				renderer.endRecording();
+				renderer.present(window.getWindow());
+
+				renderer.advanceFrame();
+
+			}
 
 			renderer.destroyRedundantBuffers();
-
 			window.pollEvents();
-			renderer.advanceFrame();
 		}
 
 		window.clearInteractable();

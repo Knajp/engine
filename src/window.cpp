@@ -3,7 +3,7 @@
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	auto windowClass = reinterpret_cast<ke::Window*>(glfwGetWindowUserPointer(window));
-	windowClass->setResized();
+	windowClass->setResized(true);
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
@@ -37,7 +37,6 @@ bool ke::Window::shouldClose()
 
 void ke::Window::pollEvents()
 {
-	std::cout << "Poll events\n";
 	glfwPollEvents();
 }
 
@@ -51,9 +50,19 @@ bool ke::Window::hasResized() const
 	return mHasResized;
 }
 
-void ke::Window::setResized()
+void ke::Window::setResized(bool val)
 {
-	mHasResized = true;
+	mHasResized = val;
+}
+
+bool ke::Window::hasIconified() const
+{
+	return mHasIconified;
+}
+
+void ke::Window::setIconified(bool val)
+{
+	mHasIconified = val;
 }
 
 void ke::Window::processInput()
@@ -107,10 +116,18 @@ void ke::Window::initWindow()
 		});
 
 	glfwSetWindowIconifyCallback(pWindow, [](GLFWwindow* window, int iconified) {
-		if (iconified) return;
-		glfwFocusWindow(window); // Important
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		std::cout << "Restored window\n";
+		auto windowClass = reinterpret_cast<ke::Window*>(glfwGetWindowUserPointer(window));
 
+		if (iconified)
+		{
+			windowClass->setIconified(true);
+		}
+		else
+		{
+			windowClass->setIconified(false);
+
+			glfwFocusWindow(window); 
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		}
 		});
 }

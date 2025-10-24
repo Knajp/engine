@@ -73,6 +73,10 @@ namespace ke
 
 		void submitBufferForDestruction(std::pair<VkBuffer, VkDeviceMemory> buffer);
 		void destroyRedundantBuffers();
+
+		bool hasRecreatedSwapchain() const;
+
+		void skipFrame();
 	private:
 		Renderer() = default;
 
@@ -103,11 +107,13 @@ namespace ke
 		VkShaderModule createShaderModule(const std::vector<char>& code) const;
 		void recreateSwapchain(GLFWwindow* pWindow);
 		void cleanupSwapchain();
-		
+		void recreateSemaphores();
+
 		void createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& memory);
 		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags flags);
+
 	private:
 		VkInstance mInstance;
 
