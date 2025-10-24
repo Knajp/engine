@@ -70,7 +70,7 @@ void ke::prim::Rect::Draw(VkCommandBuffer commandBuffer) const
 
 bool ke::prim::Rect::intersects(glm::vec2 point) const
 {
-	return (point.x <= xy.x && point.x >= xy.x + extent.x) && (point.y >= xy.y && point.y <= xy.y + extent.y);
+	return (point.x >= xy.x && point.x <= xy.x + extent.x) && (point.y >= xy.y && point.y <= xy.y + extent.y);
 }
 
 void ke::prim::Rect::createVulkanBuffers()

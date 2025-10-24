@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <GLFW/glfw3.h>
+#include "graphicalInterface.hpp"
 
 namespace ke 
 {
@@ -15,13 +16,19 @@ namespace ke
 		void setPosition(uint16_t x, uint16_t y);
 
 		bool shouldClose();
-
+												
 		void pollEvents();
 
 		GLFWwindow* getWindow() const;
 
 		bool hasResized() const;
 		void setResized();
+
+		void processInput();
+
+		void addToInteractable(std::shared_ptr<ke::ui::Button> element);
+		void clearInteractable();
+		
 	private:
 		const uint16_t mWidth;
 		const uint16_t mHeight;
@@ -30,6 +37,8 @@ namespace ke
 		std::string mWindowName;
 
 		bool mHasResized = false;
+
+		std::vector<std::shared_ptr<ke::ui::Button>> mInteractable;
 	private:
 		void initWindow();
 	};

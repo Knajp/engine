@@ -16,7 +16,7 @@ ke::ui::Button::Button(glm::vec2 _position, glm::vec2 _extent, glm::vec3 _color)
 {
 }
 
-bool ke::ui::Button::isHovering(glm::ivec2 cursorPositon)
+bool ke::ui::Button::isHovering(glm::vec2 cursorPositon) const
 {
 	return mRectangle.intersects(cursorPositon);
 }

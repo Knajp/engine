@@ -24,7 +24,7 @@ namespace ke
 			Button() = default;
 			Button(glm::vec2 _position, glm::vec2 _extent, glm::vec3 _color);
 
-			bool isHovering(glm::ivec2 cursorPositon);
+			bool isHovering(glm::vec2 cursorPositon) const;
 			std::function<void()> onClick;
 
 		};

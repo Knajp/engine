@@ -24,6 +24,7 @@ namespace ke
 
 			return buffer;
 		}
+
 	}
 	
 	namespace str
@@ -59,6 +60,12 @@ namespace ke
 
 				return descs;
 			}
+		};
+
+		struct MouseProperties
+		{
+			bool isPressed;
+			glm::vec2 cursorPosition;
 		};
 	}
 }

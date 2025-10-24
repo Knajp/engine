@@ -754,11 +754,13 @@ void ke::Renderer::recreateSwapchain(GLFWwindow* pWindow)
 {
 	int width, height;
 	glfwGetFramebufferSize(pWindow, &width, &height);
-	while (width == 0 || height == 0)
+	while (width == 0 || height == 0 && !glfwWindowShouldClose(pWindow))
 	{
 		glfwGetFramebufferSize(pWindow, &width, &height);
-		glfwWaitEvents();
+		glfwWaitEventsTimeout(0.1);
 	}
+
+	if (width == 0 || height == 0) return;
 
 	vkDeviceWaitIdle(mDevice);
 
@@ -767,6 +769,8 @@ void ke::Renderer::recreateSwapchain(GLFWwindow* pWindow)
 	createSwapchain(pWindow);
 	createSwapchainImageViews();
 	createFramebuffers();
+
+	glfwFocusWindow(pWindow);
 
 }
 

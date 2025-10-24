@@ -30,13 +30,28 @@ int main(int argc, char** argv)
 #endif
 
 	{
-		ke::ui::Button exitButton({ 0.9f, -1.0f }, { 0.1f, 0.1f }, { 0.2f, 0.2f, 0.2f });
+		auto exitButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.9f, -1.0f }, glm::vec2{ 0.1f, 0.1f }, glm::vec3{ 0.2f, 0.2f, 0.2f });
+		exitButton->onClick = [&window]()
+			{
+				glfwSetWindowShouldClose(window.getWindow(), true);
+			};
+
+		auto minimizeButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.79f, -1.0f }, glm::vec2{ 0.1f, 0.1f }, glm::vec3{ 0.2f, 0.2f, 0.2f });
+		minimizeButton->onClick = [&window]()
+			{
+				glfwIconifyWindow(window.getWindow());
+			};
+		window.addToInteractable(minimizeButton);
+		window.addToInteractable(exitButton);
 
 		while (!window.shouldClose())
 		{
+			window.processInput();
+
 			renderer.beginRecording(window.getWindow(), window.hasResized());
 			// DRAW CALLS GO HERE
-			exitButton.Draw(renderer.getCommandBuffer());
+			exitButton->Draw(renderer.getCommandBuffer());
+			minimizeButton->Draw(renderer.getCommandBuffer());
 
 			renderer.endRecording();
 			renderer.present(window.getWindow());
@@ -46,6 +61,8 @@ int main(int argc, char** argv)
 			window.pollEvents();
 			renderer.advanceFrame();
 		}
+
+		window.clearInteractable();
 	}
 	   
 	renderer.cleanupRenderer();
