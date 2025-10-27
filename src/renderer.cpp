@@ -933,7 +933,7 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	if (vkBeginCommandBuffer(mCommandBuffers[currentFrameInFlight], &cBeginInfo) != VK_SUCCESS)
 		mLogger.critical("Failed to begin command buffer!");
 
-	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+	VkClearValue clearColor = { {{0.067f, 0.067f, 0.067f, 1.0f}} };
 
 	VkRenderPassBeginInfo rBeginInfo{};
 	rBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

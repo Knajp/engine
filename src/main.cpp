@@ -30,13 +30,16 @@ int main(int argc, char** argv)
 #endif
 
 	{
-		auto exitButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.9f, -1.0f }, glm::vec2{ 0.1f, 0.1f }, glm::vec3{ 0.2f, 0.2f, 0.2f });
+		ke::ui::GUIelement topBar(glm::vec2( -1.0f, -1.0f ), glm::vec2(2.0f, 0.15f), glm::vec3(0.05f, 0.05f, 0.05f));
+		ke::ui::GUIelement rightBar(glm::vec2(0.5f, -0.85f), glm::vec2(0.5f, 1.85f), glm::vec3(0.055f, 0.055f, 0.055f));
+
+		auto exitButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.9f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		exitButton->onClick = [&window]()
 			{
 				glfwSetWindowShouldClose(window.getWindow(), true);
 			};
 
-		auto minimizeButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.79f, -1.0f }, glm::vec2{ 0.1f, 0.1f }, glm::vec3{ 0.2f, 0.2f, 0.2f });
+		auto minimizeButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.79f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		minimizeButton->onClick = [&window]()
 			{
 				glfwIconifyWindow(window.getWindow());
@@ -57,6 +60,8 @@ int main(int argc, char** argv)
 					continue;
 				}
 				// DRAW CALLS GO HERE
+				topBar.Draw(renderer.getCommandBuffer());
+				rightBar.Draw(renderer.getCommandBuffer());
 				exitButton->Draw(renderer.getCommandBuffer());
 				minimizeButton->Draw(renderer.getCommandBuffer());
 
