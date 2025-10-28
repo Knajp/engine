@@ -30,10 +30,8 @@ int main(int argc, char** argv)
 #endif
 
 	{
-		ke::ui::GUIelement topBar(glm::vec2( -1.0f, -1.0f ), glm::vec2(2.0f, 0.15f), glm::vec3(0.05f, 0.05f, 0.05f));
-		ke::ui::GUIelement rightBar(glm::vec2(0.5f, -0.85f), glm::vec2(0.5f, 1.85f), glm::vec3(0.055f, 0.055f, 0.055f));
-		ke::ui::GUIelement tabs(glm::vec2(-1.0f, -0.85f), glm::vec2(1.5f, 0.10), glm::vec3(0.055f, 0.055f, 0.055f));
-
+		auto topBar = std::make_shared<ke::ui::GUIelement>(glm::vec2( -1.0f, -1.0f ), glm::vec2(2.0f, 0.15f), glm::vec3(0.05f, 0.05f, 0.05f));
+		
 		auto exitButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.9f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		exitButton->onClick = [&window]()
 			{
@@ -46,10 +44,20 @@ int main(int argc, char** argv)
 				glfwIconifyWindow(window.getWindow());
 			};
 
+		topBar->addToChildren(minimizeButton);
+		topBar->addToChildren(exitButton);
+
+		auto rightBar = std::make_shared<ke::ui::GUIelement>(glm::vec2(0.5f, -0.85f), glm::vec2(0.5f, 1.85f), glm::vec3(0.055f, 0.055f, 0.055f));
+
+		auto tabs = std::make_shared<ke::ui::GUIelement>(glm::vec2(-1.0f, -0.85f), glm::vec2(1.5f, 0.10), glm::vec3(0.055f, 0.055f, 0.055f));
 		auto overviewButton = std::make_shared<ke::ui::Button>(glm::vec2{ -1.0f + 0.0f * 0.3775f, -0.85f }, glm::vec2{ 0.3675f, 0.1f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		auto changelogButton = std::make_shared<ke::ui::Button>(glm::vec2{ -1.0f + 1.0f * 0.3775f, -0.85f }, glm::vec2{ 0.3675f, 0.1f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		auto learnButton = std::make_shared<ke::ui::Button>(glm::vec2{ -1.0f + 2.0f * 0.3775f, -0.85f }, glm::vec2{ 0.3675f, 0.1f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		auto docsButton = std::make_shared<ke::ui::Button>(glm::vec2{ -1.0f + 3.0f * 0.3775f, -0.85f }, glm::vec2{ 0.3675f, 0.1f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
+		tabs->addToChildren(overviewButton);
+		tabs->addToChildren(changelogButton);
+		tabs->addToChildren(learnButton);
+		tabs->addToChildren(docsButton);
 
 		window.addToInteractable(minimizeButton);
 		window.addToInteractable(exitButton);
@@ -66,16 +74,11 @@ int main(int argc, char** argv)
 					window.setResized(false);
 					continue;
 				}
+				
 				// DRAW CALLS GO HERE
-				topBar.Draw(renderer.getCommandBuffer());
-				rightBar.Draw(renderer.getCommandBuffer());
-				tabs.Draw(renderer.getCommandBuffer());
-				exitButton->Draw(renderer.getCommandBuffer());
-				minimizeButton->Draw(renderer.getCommandBuffer());
-				overviewButton->Draw(renderer.getCommandBuffer());
-				changelogButton->Draw(renderer.getCommandBuffer());
-				learnButton->Draw(renderer.getCommandBuffer());
-				docsButton->Draw(renderer.getCommandBuffer());
+				topBar->Draw(renderer.getCommandBuffer());
+				rightBar->Draw(renderer.getCommandBuffer());
+				tabs->Draw(renderer.getCommandBuffer());
 
 				renderer.endRecording();
 				renderer.present(window.getWindow());

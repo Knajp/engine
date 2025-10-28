@@ -76,7 +76,6 @@ namespace ke
 
 		bool hasRecreatedSwapchain() const;
 
-		void skipFrame();
 	private:
 		Renderer() = default;
 
@@ -108,7 +107,11 @@ namespace ke
 		void recreateSwapchain(GLFWwindow* pWindow);
 		void cleanupSwapchain();
 		void recreateSemaphores();
-
+		void createDescriptorSetLayout();
+		void createUniformBuffers();
+		void createDescriptorPool();
+		void createDescriptorSets();
+		
 		void createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& memory);
 		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
@@ -154,6 +157,14 @@ namespace ke
 
 		bool recreatedSwapchain = false;
 		bool framebufferResized = false;
+
+		VkDescriptorSetLayout mDescriptorSetLayout;
+		std::vector<VkBuffer> mUniformBuffers;
+		std::vector<VkDeviceMemory> mUniformBufferMemories;
+		std::vector<void*> mUniformBuffersMapped;
+		VkDescriptorPool mDescriptorPool;
+		std::vector<VkDescriptorSet> mDescriptorSets;
+
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 		std::vector<std::pair<VkBuffer, VkDeviceMemory>> mDestroyVector;

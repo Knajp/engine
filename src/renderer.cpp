@@ -51,6 +51,10 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createSwapchain(window);
 	createSwapchainImageViews();
 	createRenderPass();
+	createDescriptorSetLayout();
+	createDescriptorPool();
+	createUniformBuffers();
+	createDescriptorSets();
 	createGraphicsPipelineLayout();
 	createGraphicsPipeline();
 	createFramebuffers();
@@ -503,7 +507,8 @@ void ke::Renderer::createGraphicsPipelineLayout()
 	VkPipelineLayoutCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	createInfo.pushConstantRangeCount = 0;
-	createInfo.setLayoutCount = 0;
+	createInfo.setLayoutCount = 1;
+	createInfo.pSetLayouts = &mDescriptorSetLayout;
 	
 	if (vkCreatePipelineLayout(mDevice, &createInfo, nullptr, &mPipelineLayout) != VK_SUCCESS && enableLogging)
 		mLogger.error("Failed to create graphics pipeline layout!");
@@ -797,6 +802,97 @@ void ke::Renderer::recreateSemaphores()
 		vkCreateSemaphore(mDevice, &createInfo, nullptr, &mImageReadySemaphores[i]);
 }
 
+void ke::Renderer::createDescriptorSetLayout()
+{
+	VkDescriptorSetLayoutBinding binding{};
+	binding.descriptorCount = 1;
+	binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	binding.binding = 0;
+
+	VkDescriptorSetLayoutCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	createInfo.bindingCount = 1;
+	createInfo.pBindings = &binding;
+	
+	if (vkCreateDescriptorSetLayout(mDevice, &createInfo, nullptr, &mDescriptorSetLayout) != VK_SUCCESS)
+		mLogger.error("Failed to create descriptor set layout!");
+}
+
+void ke::Renderer::createUniformBuffers()
+{
+	VkDeviceSize bufferSize = sizeof(ke::str::MVP);
+
+	mUniformBuffers.resize(maxFramesInFlight);
+	mUniformBufferMemories.resize(maxFramesInFlight);
+	mUniformBuffersMapped.resize(maxFramesInFlight);
+
+	ke::str::MVP ubo{};
+	ubo.model = glm::mat4(1.0f);
+	ubo.proj = glm::mat4(1.0f);
+	ubo.view = glm::mat4(1.0f);
+
+	for (size_t i = 0; i < maxFramesInFlight; i++)
+	{
+		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mUniformBuffers[i], mUniformBufferMemories[i]);
+
+		vkMapMemory(mDevice, mUniformBufferMemories[i], 0, bufferSize, 0, &mUniformBuffersMapped[i]);
+
+
+		memcpy(mUniformBuffersMapped[i], &ubo, sizeof(ke::str::MVP));
+	}
+}
+
+void ke::Renderer::createDescriptorPool()
+{
+	VkDescriptorPoolSize poolSize{};
+	poolSize.descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+	VkDescriptorPoolCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	createInfo.poolSizeCount = 1;
+	createInfo.pPoolSizes = &poolSize;
+	createInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight);
+
+	if (vkCreateDescriptorPool(mDevice, &createInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
+		mLogger.error("Failed to create descriptor pool!");
+}
+
+void ke::Renderer::createDescriptorSets()
+{
+	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, mDescriptorSetLayout);
+	
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.pSetLayouts = layouts.data();
+	allocInfo.descriptorPool = mDescriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
+	
+	mDescriptorSets.resize(maxFramesInFlight);
+	if (vkAllocateDescriptorSets(mDevice, &allocInfo, mDescriptorSets.data()) != VK_SUCCESS)
+		mLogger.error("Failed to allocate descriptor sets!");
+
+	for (size_t i = 0; i < maxFramesInFlight; i++)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = mUniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(ke::str::MVP);
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = mDescriptorSets[i];
+		write.dstBinding = 0;
+		write.dstArrayElement = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		write.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+	}
+}
+
 void ke::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
 	VkBufferCreateInfo createInfo{};
@@ -885,6 +981,14 @@ void ke::Renderer::cleanupRenderer()
 	destroyRedundantBuffers();
 	cleanupSwapchain();
 
+	for (const auto buffer : mUniformBuffers)
+	{
+		vkDestroyBuffer(mDevice, buffer, nullptr);
+	}
+	for (const auto memory : mUniformBufferMemories)
+		vkFreeMemory(mDevice, memory, nullptr);
+	vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
 	for (size_t i = 0; i < maxFramesInFlight; i++)
 	{
 		vkDestroySemaphore(mDevice, mImageReadySemaphores[i], nullptr);
@@ -947,6 +1051,7 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+	vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
 
 	VkViewport viewport{};
 	viewport.height = static_cast<float>(mSwapchainExtent.height);

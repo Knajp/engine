@@ -67,5 +67,12 @@ namespace ke
 			bool isPressed;
 			glm::vec2 cursorPosition;
 		};
+
+		struct MVP
+		{
+			glm::mat4 model;
+			glm::mat4 view;
+			glm::mat4 proj;
+		};
 	}
 }
