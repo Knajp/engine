@@ -9,8 +9,9 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
-
 #include "util.hpp"
+
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -112,6 +113,16 @@ namespace ke
 		void createDescriptorPool();
 		void createDescriptorSets();
 		
+		void createTextureImage();
+		void createTextureImageView();
+
+		void createImage(int width, int height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& imageMemory);
+		void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout);
+		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+		VkCommandBuffer beginSingeTimeCommands();
+		void endSingleTimeCommands(VkCommandBuffer commandBuffer) const;
+
 		void createBuffer(VkDeviceSize size, VkBufferUsageFlags flags, VkMemoryPropertyFlags memoryFlags, VkBuffer& buffer, VkDeviceMemory& memory);
 		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
@@ -165,6 +176,9 @@ namespace ke
 		VkDescriptorPool mDescriptorPool;
 		std::vector<VkDescriptorSet> mDescriptorSets;
 
+		VkImage textureImage;
+		VkDeviceMemory textureImageMemory;
+		VkImageView textureImageView;
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 		std::vector<std::pair<VkBuffer, VkDeviceMemory>> mDestroyVector;

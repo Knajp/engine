@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <array>
 
+
 namespace ke
 {
 	namespace util
