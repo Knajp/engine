@@ -77,6 +77,8 @@ namespace ke
 
 		bool hasRecreatedSwapchain() const;
 
+		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory);
+		void createTextureImageView(VkImageView& targetView, VkImage& sourceImage);
 	private:
 		Renderer() = default;
 
@@ -113,10 +115,11 @@ namespace ke
 		void createDescriptorPool();
 		void createDescriptorSets();
 		
-		void createTextureImage();
-		void createTextureImageView();
+		
+		void createTextureSampler();
 
 		void createImage(int width, int height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& imageMemory);
+		VkImageView createImageView(VkImage image, VkFormat format);
 		void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout);
 		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
@@ -179,6 +182,8 @@ namespace ke
 		VkImage textureImage;
 		VkDeviceMemory textureImageMemory;
 		VkImageView textureImageView;
+		VkSampler textureSampler;
+
 	private:
 		ke::Logger mLogger = ke::Logger("Render Logger", spdlog::level::debug);
 		std::vector<std::pair<VkBuffer, VkDeviceMemory>> mDestroyVector;

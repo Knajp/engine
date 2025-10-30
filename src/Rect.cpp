@@ -6,10 +6,10 @@ ke::prim::Rect::Rect(glm::vec2 _xy, glm::vec2 _extent, glm::vec3 _color)
 {
 	std::vector<ke::str::Vertex> vertices =
 	{
-		{{_xy.x, _xy.y},						 {_color.r, _color.g, _color.b}},
-		{{_xy.x + _extent.x, _xy.y},			 {_color.r, _color.g, _color.b}},
-		{{_xy.x, _xy.y + _extent.y},			 {_color.r, _color.g, _color.b}},
-		{{_xy.x + _extent.x, _xy.y + _extent.y}, {_color.r, _color.g, _color.b}}
+		{{_xy.x, _xy.y},						 {_color.r, _color.g, _color.b},	{0.0f, 0.0f}},
+		{{_xy.x + _extent.x, _xy.y},			 {_color.r, _color.g, _color.b},	{1.0f, 0.0f}},
+		{{_xy.x, _xy.y + _extent.y},			 {_color.r, _color.g, _color.b},	{0.0f, 1.0f}},
+		{{_xy.x + _extent.x, _xy.y + _extent.y}, {_color.r, _color.g, _color.b},	{1.0f, 1.0f}}
 	};
 
 	std::vector<uint16_t> indices =

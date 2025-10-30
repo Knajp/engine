@@ -34,6 +34,7 @@ namespace ke
 		{
 			glm::vec2 pos;
 			glm::vec3 color;
+			glm::vec2 uv;
 
 			static VkVertexInputBindingDescription getInputBindingDescription()
 			{
@@ -45,9 +46,9 @@ namespace ke
 				return desc;
 			}
 
-			static std::array<VkVertexInputAttributeDescription, 2> getInputAttributeDescriptions()
+			static std::array<VkVertexInputAttributeDescription, 3> getInputAttributeDescriptions()
 			{
-				std::array<VkVertexInputAttributeDescription, 2> descs{};
+				std::array<VkVertexInputAttributeDescription, 3> descs{};
 				
 				descs[0].binding = 0;
 				descs[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -58,6 +59,11 @@ namespace ke
 				descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 				descs[1].location = 1;
 				descs[1].offset = offsetof(Vertex, color);
+
+				descs[2].binding = 0;
+				descs[2].format = VK_FORMAT_R32G32_SFLOAT;
+				descs[2].location = 2;
+				descs[2].offset = offsetof(Vertex, uv);
 
 				return descs;
 			}
@@ -74,6 +80,11 @@ namespace ke
 			glm::mat4 model;
 			glm::mat4 view;
 			glm::mat4 proj;
+		};
+		
+		struct PushConstants
+		{
+			bool useTexture;
 		};
 	}
 }

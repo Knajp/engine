@@ -53,13 +53,16 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createSwapchainImageViews();
 	createRenderPass();
 	createDescriptorSetLayout();
-	createDescriptorPool();
-	createUniformBuffers();
-	createDescriptorSets();
 	createGraphicsPipelineLayout();
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
+	createTextureImage();
+	createTextureImageView();
+	createTextureSampler();
+	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
 	createCommandBuffer();
 	createSyncObjects();
 }
@@ -232,6 +235,7 @@ unsigned int ke::Renderer::rateDeviceSuitability(VkPhysicalDevice device)
 	score += deviceProperties.limits.maxImageDimension2D;
 
 	if (!deviceFeatures.geometryShader) return 0;
+	if (!deviceFeatures.samplerAnisotropy) return 0;
 
 	QueueFamilyIndices indices = findQueueFamilies(device);
 	if (!indices.isComplete()) return 0;
@@ -294,6 +298,7 @@ void ke::Renderer::createLogicalDevice()
 	
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
 
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -478,26 +483,9 @@ void ke::Renderer::createSwapchainImageViews()
 {
 	mSwapchainImageViews.resize(mSwapchainImages.size());
 
-	VkImageViewCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-	createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-	createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-	createInfo.format = mSwapchainImageFormat;
-	createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	createInfo.subresourceRange.baseMipLevel = 0;
-	createInfo.subresourceRange.levelCount = 1;
-	createInfo.subresourceRange.baseArrayLayer = 0;
-	createInfo.subresourceRange.layerCount = 1;
-	createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-
 	for (size_t i = 0; i < mSwapchainImages.size(); i++)
 	{
-		createInfo.image = mSwapchainImages[i];
-		
-		if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS && enableLogging)
-			mLogger.error("Failed to create an image view.");
+		mSwapchainImageViews[i] = createImageView(mSwapchainImages[i], mSwapchainImageFormat);
 	}
 	if(enableLogging)
 		mLogger.info("Created swapchain image views.");
@@ -505,9 +493,15 @@ void ke::Renderer::createSwapchainImageViews()
 
 void ke::Renderer::createGraphicsPipelineLayout()
 {
+	VkPushConstantRange pcRange{};
+	pcRange.offset = 0;
+	pcRange.size = sizeof(ke::str::PushConstants);
+	pcRange.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
 	VkPipelineLayoutCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	createInfo.pushConstantRangeCount = 0;
+	createInfo.pushConstantRangeCount = 1;
+	createInfo.pPushConstantRanges = &pcRange;
 	createInfo.setLayoutCount = 1;
 	createInfo.pSetLayouts = &mDescriptorSetLayout;
 	
@@ -565,6 +559,7 @@ void ke::Renderer::createGraphicsPipeline()
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 	multisampling.sampleShadingEnable = VK_FALSE;
+
 
 	VkPipelineRasterizationStateCreateInfo rasterizer{};
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -811,10 +806,18 @@ void ke::Renderer::createDescriptorSetLayout()
 	binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	binding.binding = 0;
 
+	VkDescriptorSetLayoutBinding samplerBinding{};
+	samplerBinding.descriptorCount = 1;
+	samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	samplerBinding.binding = 1;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { binding, samplerBinding };
+
 	VkDescriptorSetLayoutCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	createInfo.bindingCount = 1;
-	createInfo.pBindings = &binding;
+	createInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	createInfo.pBindings = bindings.data();
 	
 	if (vkCreateDescriptorSetLayout(mDevice, &createInfo, nullptr, &mDescriptorSetLayout) != VK_SUCCESS)
 		mLogger.error("Failed to create descriptor set layout!");
@@ -846,14 +849,16 @@ void ke::Renderer::createUniformBuffers()
 
 void ke::Renderer::createDescriptorPool()
 {
-	VkDescriptorPoolSize poolSize{};
-	poolSize.descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
-	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	poolSizes[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
 	VkDescriptorPoolCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	createInfo.poolSizeCount = 1;
-	createInfo.pPoolSizes = &poolSize;
+	createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	createInfo.pPoolSizes = poolSizes.data();
 	createInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight);
 
 	if (vkCreateDescriptorPool(mDevice, &createInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
@@ -881,20 +886,33 @@ void ke::Renderer::createDescriptorSets()
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(ke::str::MVP);
 
-		VkWriteDescriptorSet write{};
-		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		write.dstSet = mDescriptorSets[i];
-		write.dstBinding = 0;
-		write.dstArrayElement = 0;
-		write.descriptorCount = 1;
-		write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		write.pBufferInfo = &bufferInfo;
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = textureImageView;
+		imageInfo.sampler = textureSampler;
 
-		vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+		std::array<VkWriteDescriptorSet, 2> writes{};
+		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[0].dstSet = mDescriptorSets[i];
+		writes[0].dstBinding = 0;
+		writes[0].dstArrayElement = 0;
+		writes[0].descriptorCount = 1;
+		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writes[0].pBufferInfo = &bufferInfo;
+
+		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[1].dstSet = mDescriptorSets[i];
+		writes[1].dstBinding = 1;
+		writes[1].dstArrayElement = 0;
+		writes[1].descriptorCount = 1;
+		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[1].pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 	}
 }
 
-void ke::Renderer::createTextureImage()
+void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory)
 {
 	int tWidth, tHeight, numColCh;
 	stbi_uc* pixels = stbi_load("txt/texture.jpg", &tWidth, &tHeight, &numColCh, STBI_rgb_alpha);
@@ -918,31 +936,46 @@ void ke::Renderer::createTextureImage()
 
 	stbi_image_free(pixels);
 
-	createImage(tWidth, tHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, textureImage, textureImageMemory);
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(stagingBuffer, textureImage, tWidth, tHeight);
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	createImage(tWidth, tHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, targetImage, targetMemory);
+	transitionImageLayout(targetImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(stagingBuffer, targetImage, tWidth, tHeight);
+	transitionImageLayout(targetImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
 	vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
 		
 }
 
-void ke::Renderer::createTextureImageView()
+void ke::Renderer::createTextureImageView(VkImageView& targetView, VkImage& sourceImage)
 {
-	VkImageViewCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	createInfo.image = textureImage;
-	createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	createInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-	createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	createInfo.subresourceRange.baseArrayLayer = 0;
-	createInfo.subresourceRange.layerCount = 1;
-	createInfo.subresourceRange.baseMipLevel = 0;
-	createInfo.subresourceRange.levelCount = 1;
+	targetView = createImageView(sourceImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
 
-	if (vkCreateImageView(mDevice, &createInfo, nullptr, &textureImageView) != VK_SUCCESS)
-		mLogger.error("Failed to create texture image view!");
+void ke::Renderer::createTextureSampler()
+{
+	VkSamplerCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	createInfo.minFilter = VK_FILTER_LINEAR;
+	createInfo.magFilter = VK_FILTER_LINEAR;
+	createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	createInfo.anisotropyEnable = VK_TRUE;
+
+	VkPhysicalDeviceProperties prop{};
+	vkGetPhysicalDeviceProperties(mPhysicalDevice, &prop);
+
+	createInfo.maxAnisotropy = prop.limits.maxSamplerAnisotropy;
+	createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	createInfo.compareEnable = VK_FALSE;
+	createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	createInfo.mipLodBias = 0.0f;
+	createInfo.minLod = 0.0f;
+	createInfo.maxLod = 0.0f;
+
+	if (vkCreateSampler(mDevice, &createInfo, nullptr, &textureSampler) != VK_SUCCESS)
+		mLogger.error("Failed to create texture sampler!");
 
 }
 
@@ -980,6 +1013,27 @@ void ke::Renderer::createImage(int width, int height, VkFormat format, VkImageTi
 	vkBindImageMemory(mDevice, image, imageMemory, 0);
 }
 
+VkImageView ke::Renderer::createImageView(VkImage image, VkFormat format)
+{
+	VkImageView imageView;
+
+	VkImageViewCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	createInfo.image = image;
+	createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	createInfo.format = format;
+	createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	createInfo.subresourceRange.baseArrayLayer = 0;
+	createInfo.subresourceRange.layerCount = 1;
+	createInfo.subresourceRange.baseMipLevel = 0;
+	createInfo.subresourceRange.levelCount = 1;
+
+	if (vkCreateImageView(mDevice, &createInfo, nullptr, &imageView) != VK_SUCCESS)
+		mLogger.error("Failed to create image view!");
+
+	return imageView;
+}
+
 void ke::Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout)
 {
 	VkCommandBuffer commandBuffer = beginSingeTimeCommands();
@@ -991,6 +1045,7 @@ void ke::Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImage
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 	barrier.subresourceRange.baseMipLevel = 0;
@@ -1140,6 +1195,8 @@ void ke::Renderer::cleanupRenderer()
 	destroyRedundantBuffers();
 	cleanupSwapchain();
 
+	vkDestroySampler(mDevice, textureSampler, nullptr);
+	vkDestroyImageView(mDevice, textureImageView, nullptr);
 
 	vkDestroyImage(mDevice, textureImage, nullptr);
 	vkFreeMemory(mDevice, textureImageMemory, nullptr);
