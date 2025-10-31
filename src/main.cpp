@@ -32,17 +32,22 @@ int main(int argc, char** argv)
 	{
 		auto topBar = std::make_shared<ke::ui::GUIelement>(glm::vec2( -1.0f, -1.0f ), glm::vec2(2.0f, 0.15f), glm::vec3(0.05f, 0.05f, 0.05f));
 		
+		ke::Texture exitTexture("txt/close.png");
+		ke::Texture minimizeTexture("txt/min.png");
+
 		auto exitButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.9f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		exitButton->onClick = [&window]()
 			{
 				glfwSetWindowShouldClose(window.getWindow(), true);
 			};
+		exitButton->setTexture(exitTexture);
 
 		auto minimizeButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.79f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		minimizeButton->onClick = [&window]()
 			{
 				glfwIconifyWindow(window.getWindow());
 			};
+		minimizeButton->setTexture(minimizeTexture);
 
 		topBar->addToChildren(minimizeButton);
 		topBar->addToChildren(exitButton);

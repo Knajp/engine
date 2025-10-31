@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 #include "util.hpp"
+#include "texture.hpp"
 
 namespace ke
 {
@@ -24,6 +25,8 @@ namespace ke
 
 			void Draw(VkCommandBuffer commandBuffer) const;
 			bool intersects(glm::vec2 point) const;
+
+			void setTexture(ke::Texture text);
 		private:
 			std::vector<ke::str::Vertex> mVertices;
 			std::vector<uint16_t> mIndices;
@@ -32,6 +35,9 @@ namespace ke
 			VkDeviceMemory mVertexBufferMemory = VK_NULL_HANDLE;
 			VkBuffer mIndexBuffer = VK_NULL_HANDLE;
 			VkDeviceMemory mIndexBufferMemory = VK_NULL_HANDLE;
+
+			ke::Texture mTexture;
+			int useTexture = 0;
 
 			void createVulkanBuffers();
 		};

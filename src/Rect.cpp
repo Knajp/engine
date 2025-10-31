@@ -65,12 +65,25 @@ void ke::prim::Rect::Draw(VkCommandBuffer commandBuffer) const
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mVertexBuffer, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+	if (useTexture)
+	{
+		ke::Renderer::getInstance().bindTexture(mTexture.getView());
+		ke::Renderer::getInstance().setUseTexture(commandBuffer, true);
+	}
+	else ke::Renderer::getInstance().setUseTexture(commandBuffer, false);
+
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(mIndices.size()), 1, 0, 0, 0);
 }
 
 bool ke::prim::Rect::intersects(glm::vec2 point) const
 {
 	return (point.x >= xy.x && point.x <= xy.x + extent.x) && (point.y >= xy.y && point.y <= xy.y + extent.y);
+}
+
+void ke::prim::Rect::setTexture(ke::Texture text)
+{
+	mTexture = text;
+	useTexture = 1;
 }
 
 void ke::prim::Rect::createVulkanBuffers()

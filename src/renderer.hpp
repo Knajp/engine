@@ -77,8 +77,11 @@ namespace ke
 
 		bool hasRecreatedSwapchain() const;
 
-		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory);
+		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file);
 		void createTextureImageView(VkImageView& targetView, VkImage& sourceImage);
+
+		void bindTexture(VkImageView textureView);
+		void setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture);
 	private:
 		Renderer() = default;
 
@@ -115,7 +118,7 @@ namespace ke
 		void createDescriptorPool();
 		void createDescriptorSets();
 		
-		
+		void createDefaultTexture();
 		void createTextureSampler();
 
 		void createImage(int width, int height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& imageMemory);
@@ -158,6 +161,7 @@ namespace ke
 
 		VkCommandPool mCommandPool;
 		std::vector<VkCommandBuffer> mCommandBuffers;
+		std::vector<VkCommandBuffer> mSecondaryCommandBuffers;
 
 		std::vector<VkFramebuffer> mFramebuffers;
 
@@ -181,7 +185,7 @@ namespace ke
 
 		VkImage textureImage;
 		VkDeviceMemory textureImageMemory;
-		VkImageView textureImageView;
+		VkImageView textureView;
 		VkSampler textureSampler;
 
 	private:

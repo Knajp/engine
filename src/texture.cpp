@@ -3,8 +3,13 @@
 
 ke::Texture::Texture(std::string filepath)
 {
-	ke::Renderer::getInstance().createTextureImage(mImage, mImageMemory);
+	ke::Renderer::getInstance().createTextureImage(mImage, mImageMemory, filepath);
 	ke::Renderer::getInstance().createTextureImageView(mImageView, mImage);
+}
+
+VkImageView ke::Texture::getView() const
+{
+	return mImageView;
 }
 
 

@@ -33,6 +33,11 @@ bool ke::ui::GUIelement::isChildOf(std::shared_ptr<GUIelement> other)
 	return other->isParent(shared_from_this());
 }
 
+void ke::ui::GUIelement::setTexture(ke::Texture txt)
+{
+	mRectangle.setTexture(txt);
+}
+
 ke::ui::Button::Button(glm::vec2 _position, glm::vec2 _extent, glm::vec3 _color)
 	: GUIelement(_position, _extent, _color)
 {

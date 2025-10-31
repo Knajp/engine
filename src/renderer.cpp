@@ -57,8 +57,7 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
-	createTextureImage();
-	createTextureImageView();
+	createDefaultTexture();
 	createTextureSampler();
 	createUniformBuffers();
 	createDescriptorPool();
@@ -496,7 +495,7 @@ void ke::Renderer::createGraphicsPipelineLayout()
 	VkPushConstantRange pcRange{};
 	pcRange.offset = 0;
 	pcRange.size = sizeof(ke::str::PushConstants);
-	pcRange.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkPipelineLayoutCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -686,6 +685,19 @@ void ke::Renderer::createCommandBuffer()
 		mLogger.critical("Failed to allocate command buffer!");
 	if(enableLogging)
 		mLogger.info("Created command buffer.");
+
+	mSecondaryCommandBuffers.resize(maxFramesInFlight);
+
+	VkCommandBufferAllocateInfo sAllocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+	allocInfo.commandPool = mCommandPool;
+
+	if (vkAllocateCommandBuffers(mDevice, &sAllocInfo, mSecondaryCommandBuffers.data()) != VK_SUCCESS && enableLogging)
+		mLogger.critical("Failed to allocate secondary command buffer!");
+	if (enableLogging)
+		mLogger.info("Created secondary command buffer.");
 }
 
 void ke::Renderer::createFramebuffers()
@@ -812,6 +824,7 @@ void ke::Renderer::createDescriptorSetLayout()
 	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	samplerBinding.binding = 1;
 
+
 	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { binding, samplerBinding };
 
 	VkDescriptorSetLayoutCreateInfo createInfo{};
@@ -888,7 +901,7 @@ void ke::Renderer::createDescriptorSets()
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = textureImageView;
+		imageInfo.imageView = textureView;
 		imageInfo.sampler = textureSampler;
 
 		std::array<VkWriteDescriptorSet, 2> writes{};
@@ -912,10 +925,10 @@ void ke::Renderer::createDescriptorSets()
 	}
 }
 
-void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory)
+void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file)
 {
 	int tWidth, tHeight, numColCh;
-	stbi_uc* pixels = stbi_load("txt/texture.jpg", &tWidth, &tHeight, &numColCh, STBI_rgb_alpha);
+	stbi_uc* pixels = stbi_load(file.c_str(), &tWidth, &tHeight, &numColCh, STBI_rgb_alpha);
 
 	VkDeviceSize imageSize = tWidth * tHeight * 4;
 	if (!pixels)
@@ -949,6 +962,37 @@ void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targ
 void ke::Renderer::createTextureImageView(VkImageView& targetView, VkImage& sourceImage)
 {
 	targetView = createImageView(sourceImage, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
+void ke::Renderer::bindTexture(VkImageView textureView)
+{
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = textureView;
+	imageInfo.sampler = textureSampler;
+
+	VkWriteDescriptorSet write{};
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.dstBinding = 1;
+	write.dstSet = mDescriptorSets[currentFrameInFlight];
+	write.dstArrayElement = 0;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = &imageInfo;
+
+	vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+}
+
+void ke::Renderer::setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture)
+{
+	ke::str::PushConstants pc{ useTexture };
+	vkCmdPushConstants(cmdBuffer, mPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ke::str::PushConstants), &pc);
+}
+
+void ke::Renderer::createDefaultTexture()
+{
+	createTextureImage(textureImage, textureImageMemory, "txt/def.png");
+	createTextureImageView(textureView, textureImage);
 }
 
 void ke::Renderer::createTextureSampler()
@@ -1196,10 +1240,6 @@ void ke::Renderer::cleanupRenderer()
 	cleanupSwapchain();
 
 	vkDestroySampler(mDevice, textureSampler, nullptr);
-	vkDestroyImageView(mDevice, textureImageView, nullptr);
-
-	vkDestroyImage(mDevice, textureImage, nullptr);
-	vkFreeMemory(mDevice, textureImageMemory, nullptr);
 
 	for (const auto buffer : mUniformBuffers)
 	{

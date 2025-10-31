@@ -84,7 +84,7 @@ namespace ke
 		
 		struct PushConstants
 		{
-			bool useTexture;
+			int useTexture;
 		};
 	}
 }
