@@ -1,4 +1,5 @@
 #include "graphicalInterface.hpp"
+#include "renderer.hpp"
 
 ke::ui::GUIelement::GUIelement(glm::vec2 _position, glm::vec2 _extent, glm::vec3 _color)
 	:	mRectangle(_position, _extent, _color)
@@ -8,10 +9,17 @@ ke::ui::GUIelement::GUIelement(glm::vec2 _position, glm::vec2 _extent, glm::vec3
 
 void ke::ui::GUIelement::Draw(VkCommandBuffer buffer) const
 {
+	ke::Renderer::getInstance().beginSecondaryBuffer(buffer);
+
 	mRectangle.Draw(buffer);
+
+	ke::Renderer::getInstance().endSecondaryBuffer(buffer);
+	ke::Renderer::getInstance().applySecondaryCommands();
 
 	for (const auto& child : mChildren)
 		child.get()->Draw(buffer);
+
+	
 }
 
 void ke::ui::GUIelement::addToChildren(std::shared_ptr<GUIelement> child)

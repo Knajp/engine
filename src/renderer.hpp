@@ -82,6 +82,10 @@ namespace ke
 
 		void bindTexture(VkImageView textureView);
 		void setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture);
+
+		void applySecondaryCommands();
+		void beginSecondaryBuffer(VkCommandBuffer buffer);
+		void endSecondaryBuffer(VkCommandBuffer buffer);
 	private:
 		Renderer() = default;
 

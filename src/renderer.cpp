@@ -689,10 +689,10 @@ void ke::Renderer::createCommandBuffer()
 	mSecondaryCommandBuffers.resize(maxFramesInFlight);
 
 	VkCommandBufferAllocateInfo sAllocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-	allocInfo.commandPool = mCommandPool;
+	sAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	sAllocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
+	sAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+	sAllocInfo.commandPool = mCommandPool;
 
 	if (vkAllocateCommandBuffers(mDevice, &sAllocInfo, mSecondaryCommandBuffers.data()) != VK_SUCCESS && enableLogging)
 		mLogger.critical("Failed to allocate secondary command buffer!");
@@ -987,6 +987,53 @@ void ke::Renderer::setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture)
 {
 	ke::str::PushConstants pc{ useTexture };
 	vkCmdPushConstants(cmdBuffer, mPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ke::str::PushConstants), &pc);
+}
+
+void ke::Renderer::applySecondaryCommands()
+{
+	vkCmdExecuteCommands(mCommandBuffers[currentFrameInFlight], 1, &mSecondaryCommandBuffers[currentFrameInFlight]);
+}
+
+void ke::Renderer::beginSecondaryBuffer(VkCommandBuffer buffer)
+{
+	VkCommandBufferInheritanceInfo iInfo{};
+	iInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+	iInfo.renderPass = mRenderPass;
+	iInfo.subpass = 0;
+	iInfo.framebuffer = mFramebuffers[currentFrameInFlight];
+	iInfo.occlusionQueryEnable = VK_FALSE;
+	iInfo.queryFlags = 0;
+	iInfo.pipelineStatistics = 0;
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+	beginInfo.pInheritanceInfo = &iInfo;
+
+	mLogger.debug("Calling begin.");
+	vkBeginCommandBuffer(buffer, &beginInfo);
+
+	vkCmdBindPipeline(mSecondaryCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+	vkCmdBindDescriptorSets(mSecondaryCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+
+	VkViewport viewport{};
+	viewport.height = static_cast<float>(mSwapchainExtent.height);
+	viewport.width = static_cast<float>(mSwapchainExtent.width);
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(mSecondaryCommandBuffers[currentFrameInFlight], 0, 1, &viewport);
+
+	VkRect2D scissor{};
+	scissor.extent = mSwapchainExtent;
+	scissor.offset = { 0,0 };
+	vkCmdSetScissor(mSecondaryCommandBuffers[currentFrameInFlight], 0, 1, &scissor);
+}
+
+void ke::Renderer::endSecondaryBuffer(VkCommandBuffer buffer)
+{
+	vkEndCommandBuffer(buffer);
 }
 
 void ke::Renderer::createDefaultTexture()
@@ -1308,24 +1355,7 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	rBeginInfo.renderArea.offset = { 0,0 };
 	rBeginInfo.renderPass = mRenderPass;
 
-	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
-	vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
-
-	VkViewport viewport{};
-	viewport.height = static_cast<float>(mSwapchainExtent.height);
-	viewport.width = static_cast<float>(mSwapchainExtent.width);
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(mCommandBuffers[currentFrameInFlight], 0, 1, &viewport);
-
-	VkRect2D scissor{};
-	scissor.extent = mSwapchainExtent;
-	scissor.offset = { 0,0 };
-	vkCmdSetScissor(mCommandBuffers[currentFrameInFlight], 0, 1, &scissor);
+	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 
 void ke::Renderer::endRecording()
@@ -1381,7 +1411,7 @@ void ke::Renderer::advanceFrame()
 
 VkCommandBuffer ke::Renderer::getCommandBuffer() const
 {
-	return mCommandBuffers[currentFrameInFlight];
+	return mSecondaryCommandBuffers[currentFrameInFlight];
 }
 
 VkDevice ke::Renderer::getDevice()
