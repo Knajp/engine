@@ -685,19 +685,6 @@ void ke::Renderer::createCommandBuffer()
 		mLogger.critical("Failed to allocate command buffer!");
 	if(enableLogging)
 		mLogger.info("Created command buffer.");
-
-	mSecondaryCommandBuffers.resize(maxFramesInFlight);
-
-	VkCommandBufferAllocateInfo sAllocInfo{};
-	sAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	sAllocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
-	sAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-	sAllocInfo.commandPool = mCommandPool;
-
-	if (vkAllocateCommandBuffers(mDevice, &sAllocInfo, mSecondaryCommandBuffers.data()) != VK_SUCCESS && enableLogging)
-		mLogger.critical("Failed to allocate secondary command buffer!");
-	if (enableLogging)
-		mLogger.info("Created secondary command buffer.");
 }
 
 void ke::Renderer::createFramebuffers()
@@ -962,78 +949,6 @@ void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targ
 void ke::Renderer::createTextureImageView(VkImageView& targetView, VkImage& sourceImage)
 {
 	targetView = createImageView(sourceImage, VK_FORMAT_R8G8B8A8_SRGB);
-}
-
-void ke::Renderer::bindTexture(VkImageView textureView)
-{
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureView;
-	imageInfo.sampler = textureSampler;
-
-	VkWriteDescriptorSet write{};
-	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	write.dstBinding = 1;
-	write.dstSet = mDescriptorSets[currentFrameInFlight];
-	write.dstArrayElement = 0;
-	write.descriptorCount = 1;
-	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	write.pImageInfo = &imageInfo;
-
-	vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
-}
-
-void ke::Renderer::setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture)
-{
-	ke::str::PushConstants pc{ useTexture };
-	vkCmdPushConstants(cmdBuffer, mPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ke::str::PushConstants), &pc);
-}
-
-void ke::Renderer::applySecondaryCommands()
-{
-	vkCmdExecuteCommands(mCommandBuffers[currentFrameInFlight], 1, &mSecondaryCommandBuffers[currentFrameInFlight]);
-}
-
-void ke::Renderer::beginSecondaryBuffer(VkCommandBuffer buffer)
-{
-	VkCommandBufferInheritanceInfo iInfo{};
-	iInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-	iInfo.renderPass = mRenderPass;
-	iInfo.subpass = 0;
-	iInfo.framebuffer = mFramebuffers[currentFrameInFlight];
-	iInfo.occlusionQueryEnable = VK_FALSE;
-	iInfo.queryFlags = 0;
-	iInfo.pipelineStatistics = 0;
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-	beginInfo.pInheritanceInfo = &iInfo;
-
-	mLogger.debug("Calling begin.");
-	vkBeginCommandBuffer(buffer, &beginInfo);
-
-	vkCmdBindPipeline(mSecondaryCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
-	vkCmdBindDescriptorSets(mSecondaryCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
-
-	VkViewport viewport{};
-	viewport.height = static_cast<float>(mSwapchainExtent.height);
-	viewport.width = static_cast<float>(mSwapchainExtent.width);
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(mSecondaryCommandBuffers[currentFrameInFlight], 0, 1, &viewport);
-
-	VkRect2D scissor{};
-	scissor.extent = mSwapchainExtent;
-	scissor.offset = { 0,0 };
-	vkCmdSetScissor(mSecondaryCommandBuffers[currentFrameInFlight], 0, 1, &scissor);
-}
-
-void ke::Renderer::endSecondaryBuffer(VkCommandBuffer buffer)
-{
-	vkEndCommandBuffer(buffer);
 }
 
 void ke::Renderer::createDefaultTexture()
@@ -1344,6 +1259,26 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	if (vkBeginCommandBuffer(mCommandBuffers[currentFrameInFlight], &cBeginInfo) != VK_SUCCESS)
 		mLogger.critical("Failed to begin command buffer!");
 
+	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+
+	VkViewport viewport{};
+	viewport.height = mSwapchainExtent.height;
+	viewport.width = mSwapchainExtent.width;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	viewport.x = 0;
+	viewport.y = 0;
+
+	VkRect2D scissor{};
+	scissor.extent = mSwapchainExtent;
+	scissor.offset = { 0,0 };
+
+	vkCmdSetViewport(mCommandBuffers[currentFrameInFlight], 0, 1, &viewport);
+	vkCmdSetScissor(mCommandBuffers[currentFrameInFlight], 0, 1, &scissor);
+
+	vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+
+
 	VkClearValue clearColor = { {{0.067f, 0.067f, 0.067f, 1.0f}} };
 
 	VkRenderPassBeginInfo rBeginInfo{};
@@ -1355,7 +1290,7 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	rBeginInfo.renderArea.offset = { 0,0 };
 	rBeginInfo.renderPass = mRenderPass;
 
-	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+	vkCmdBeginRenderPass(mCommandBuffers[currentFrameInFlight], &rBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void ke::Renderer::endRecording()
@@ -1363,6 +1298,8 @@ void ke::Renderer::endRecording()
 	if (recreatedSwapchain) return;
 	
 	vkCmdEndRenderPass(mCommandBuffers[currentFrameInFlight]);
+	mLogger.debug("Ending recording on ");
+	std::cout << mCommandBuffers[currentFrameInFlight] << "\n";
 	if (vkEndCommandBuffer(mCommandBuffers[currentFrameInFlight]) != VK_SUCCESS)
 		mLogger.error("Failed to record command buffer!");
 	
@@ -1409,9 +1346,9 @@ void ke::Renderer::advanceFrame()
 	currentFrameInFlight = (currentFrameInFlight + 1) % maxFramesInFlight;
 }
 
-VkCommandBuffer ke::Renderer::getCommandBuffer() const
+VkCommandBuffer& ke::Renderer::getCommandBuffer()
 {
-	return mSecondaryCommandBuffers[currentFrameInFlight];
+	return mCommandBuffers[currentFrameInFlight];
 }
 
 VkDevice ke::Renderer::getDevice()

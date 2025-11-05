@@ -66,7 +66,7 @@ namespace ke
 		void present(GLFWwindow* pWindow);
 
 		void advanceFrame();
-		VkCommandBuffer getCommandBuffer() const;
+		VkCommandBuffer& getCommandBuffer();
 
 		static VkDevice getDevice();
 		static void createVertexBuffer(VkBuffer& buffer, VkDeviceMemory& bufferMemory, const std::vector<ke::str::Vertex>& vertices);
@@ -79,13 +79,6 @@ namespace ke
 
 		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file);
 		void createTextureImageView(VkImageView& targetView, VkImage& sourceImage);
-
-		void bindTexture(VkImageView textureView);
-		void setUseTexture(VkCommandBuffer cmdBuffer, bool useTexture);
-
-		void applySecondaryCommands();
-		void beginSecondaryBuffer(VkCommandBuffer buffer);
-		void endSecondaryBuffer(VkCommandBuffer buffer);
 	private:
 		Renderer() = default;
 
@@ -165,7 +158,6 @@ namespace ke
 
 		VkCommandPool mCommandPool;
 		std::vector<VkCommandBuffer> mCommandBuffers;
-		std::vector<VkCommandBuffer> mSecondaryCommandBuffers;
 
 		std::vector<VkFramebuffer> mFramebuffers;
 

@@ -22,7 +22,6 @@ namespace ke
 			bool isParent(std::shared_ptr<GUIelement> other) const;
 			bool isChildOf(std::shared_ptr<GUIelement> other);
 
-			void setTexture(ke::Texture txt);
 		protected:
 			ke::prim::Rect mRectangle;
 
