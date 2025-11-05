@@ -57,7 +57,7 @@ void ke::Renderer::initVulkan(GLFWwindow* window)
 	createGraphicsPipeline();
 	createFramebuffers();
 	createCommandPool();
-	createDefaultTexture();
+	createMenuTextureAtlas();
 	createTextureSampler();
 	createUniformBuffers();
 	createDescriptorPool();
@@ -951,9 +951,15 @@ void ke::Renderer::createTextureImageView(VkImageView& targetView, VkImage& sour
 	targetView = createImageView(sourceImage, VK_FORMAT_R8G8B8A8_SRGB);
 }
 
-void ke::Renderer::createDefaultTexture()
+void ke::Renderer::pushTexture(int16_t txt)
 {
-	createTextureImage(textureImage, textureImageMemory, "txt/def.png");
+	ke::str::PushConstants pc = { txt };
+	vkCmdPushConstants(mCommandBuffers[currentFrameInFlight], mPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ke::str::PushConstants), &pc);
+}
+
+void ke::Renderer::createMenuTextureAtlas()
+{
+	createTextureImage(textureImage, textureImageMemory, "txt/menu.png");
 	createTextureImageView(textureView, textureImage);
 }
 
@@ -961,8 +967,8 @@ void ke::Renderer::createTextureSampler()
 {
 	VkSamplerCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	createInfo.minFilter = VK_FILTER_LINEAR;
-	createInfo.magFilter = VK_FILTER_LINEAR;
+	createInfo.minFilter = VK_FILTER_NEAREST;
+	createInfo.magFilter = VK_FILTER_NEAREST;
 	createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -1201,6 +1207,9 @@ void ke::Renderer::cleanupRenderer()
 	destroyRedundantBuffers();
 	cleanupSwapchain();
 
+	vkDestroyImage(mDevice, textureImage, nullptr);
+	vkDestroyImageView(mDevice, textureView, nullptr);
+	vkFreeMemory(mDevice, textureImageMemory, nullptr);
 	vkDestroySampler(mDevice, textureSampler, nullptr);
 
 	for (const auto buffer : mUniformBuffers)
@@ -1262,8 +1271,8 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	vkCmdBindPipeline(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
 	VkViewport viewport{};
-	viewport.height = mSwapchainExtent.height;
-	viewport.width = mSwapchainExtent.width;
+	viewport.height = static_cast<float>(mSwapchainExtent.height);
+	viewport.width = static_cast<float>(mSwapchainExtent.width);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	viewport.x = 0;
@@ -1298,8 +1307,7 @@ void ke::Renderer::endRecording()
 	if (recreatedSwapchain) return;
 	
 	vkCmdEndRenderPass(mCommandBuffers[currentFrameInFlight]);
-	mLogger.debug("Ending recording on ");
-	std::cout << mCommandBuffers[currentFrameInFlight] << "\n";
+
 	if (vkEndCommandBuffer(mCommandBuffers[currentFrameInFlight]) != VK_SUCCESS)
 		mLogger.error("Failed to record command buffer!");
 	

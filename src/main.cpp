@@ -37,12 +37,14 @@ int main(int argc, char** argv)
 			{
 				glfwSetWindowShouldClose(window.getWindow(), true);
 			};
+		exitButton->setUseTexture(ke::txt::Textures::CLOSE);
 
 		auto minimizeButton = std::make_shared<ke::ui::Button>(glm::vec2{ 0.79f, -1.0f }, glm::vec2{ 0.1f, 0.15f }, glm::vec3{ 0.045f, 0.045f, 0.045f });
 		minimizeButton->onClick = [&window]()
 			{
 				glfwIconifyWindow(window.getWindow());
 			};
+		minimizeButton->setUseTexture(ke::txt::Textures::MINIMIZE);
 
 		topBar->addToChildren(minimizeButton);
 		topBar->addToChildren(exitButton);

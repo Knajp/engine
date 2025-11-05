@@ -7,6 +7,7 @@ layout(location = 2) in vec2 inUV;
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragUV;
 
+
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;

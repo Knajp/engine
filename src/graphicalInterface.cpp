@@ -9,6 +9,7 @@ ke::ui::GUIelement::GUIelement(glm::vec2 _position, glm::vec2 _extent, glm::vec3
 
 void ke::ui::GUIelement::Draw(VkCommandBuffer buffer) const
 {
+	ke::Renderer::getInstance().pushTexture(useTexture);
 	mRectangle.Draw(buffer);
 
 	for (const auto& child : mChildren)
@@ -32,6 +33,11 @@ bool ke::ui::GUIelement::isChildOf(std::shared_ptr<GUIelement> other)
 	if (!other) return false;
 
 	return other->isParent(shared_from_this());
+}
+
+void ke::ui::GUIelement::setUseTexture(int16_t texture)
+{
+	useTexture = texture;
 }
 
 ke::ui::Button::Button(glm::vec2 _position, glm::vec2 _extent, glm::vec3 _color)

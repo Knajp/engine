@@ -22,8 +22,10 @@ namespace ke
 			bool isParent(std::shared_ptr<GUIelement> other) const;
 			bool isChildOf(std::shared_ptr<GUIelement> other);
 
+			void setUseTexture(int16_t texture);
 		protected:
 			ke::prim::Rect mRectangle;
+			int16_t useTexture = -1;
 
 			std::vector<std::shared_ptr<GUIelement>> mChildren;
 		};

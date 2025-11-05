@@ -79,6 +79,8 @@ namespace ke
 
 		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file);
 		void createTextureImageView(VkImageView& targetView, VkImage& sourceImage);
+
+		void pushTexture(int16_t txt);
 	private:
 		Renderer() = default;
 
@@ -115,7 +117,7 @@ namespace ke
 		void createDescriptorPool();
 		void createDescriptorSets();
 		
-		void createDefaultTexture();
+		void createMenuTextureAtlas();
 		void createTextureSampler();
 
 		void createImage(int width, int height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& imageMemory);

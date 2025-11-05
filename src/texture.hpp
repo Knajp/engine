@@ -4,17 +4,14 @@
 
 namespace ke
 {
-	class Texture
+	namespace txt
 	{
-	public:
-		Texture() = default;
-		Texture(std::string filepath);
+		const float txtWidth = 0.25f;
 
-		VkImageView getView() const;
-	private:
-		VkImage mImage;
-		VkDeviceMemory mImageMemory;
-		VkImageView mImageView;
+		enum Textures
+		{
+			CLOSE, MINIMIZE
+		};
 
-	};
+	}
 }

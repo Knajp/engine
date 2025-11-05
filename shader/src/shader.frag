@@ -14,8 +14,15 @@ layout(binding = 1) uniform sampler2D texSampler;
 
 void main()
 {
-	if(pc.useTexture == 0)
+	float textureWidth = 0.25;
+
+	
+	if(pc.useTexture == -1)
 		outColor = vec4(fragColor, 1.0);
 	else
-		outColor = texture(texSampler, fragUV);
+	{
+		vec2 localUV = vec2(pc.useTexture * textureWidth + fragUV.x * textureWidth, fragUV.y);
+		outColor = texture(texSampler, localUV);
+	}
+		
 }
