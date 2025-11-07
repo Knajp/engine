@@ -9,10 +9,49 @@ ke::text::Text& ke::text::Text::getInstance()
 ke::text::Text::Text()
 {
 	if (FT_Init_FreeType(&mLibrary))
-		mLogger.error("Failed to initialize FreeType!");
+		ke::text::textLogger.error("Failed to initialize FreeType!");
 }
 
 ke::text::Font::Font(std::string path, FT_Library& lib)
 {
 	if (FT_New_Face(lib, path.c_str(), 0, &mFace))
+		ke::text::textLogger.error("Failed to create font face!");
+
+	const int ATLASWIDTH = 1024, ATLASHEIGHT = 1024;
+	unsigned char* atlasData = new unsigned char[ATLASWIDTH * ATLASHEIGHT];
+	memset(atlasData, 0, ATLASWIDTH * ATLASHEIGHT);
+
+	int x = 0, y = 0, rowHeight = 0;
+	std::map<char, ke::str::Glyph> glyphs;
+
+	for (unsigned char c = 32; c < 128; c++)
+	{
+		if (FT_Load_Char(mFace, c, FT_LOAD_RENDER))
+			continue;
+
+		FT_GlyphSlot g = mFace->glyph;
+		if (x + g->bitmap.width >= ATLASWIDTH)
+		{
+			x = 0;
+			y += rowHeight;
+			rowHeight = 0;
+		}
+
+		for (int row = 0; row < g->bitmap.rows; row++)
+			memcpy(atlasData + (y + row) * ATLASWIDTH + x, g->bitmap.buffer + row * g->bitmap.width, g->bitmap.width);
+
+		glyphs[c] = {
+			.uvX = (float)x / ATLASWIDTH,
+			.uvY = (float)y / ATLASHEIGHT,
+			.uvW = (float)g->bitmap.width / ATLASWIDTH,
+			.uvH = (float)g->bitmap.rows / ATLASHEIGHT,
+			.bearingX = g->bitmap_left,
+			.bearingY = g->bitmap_top,
+			.advance = g->advance.x >> 6
+		};
+
+		x += g->bitmap.width + 1;
+		rowHeight = std::max(rowHeight, (int)g->bitmap.rows);
+
+	}
 }

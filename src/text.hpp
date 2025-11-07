@@ -3,10 +3,12 @@
 #include <freetype/freetype.h>
 #define FT_FREETYPE_H
 #include "logger.hpp"
+#include "util.hpp"
 namespace ke
 {
 	namespace text
 	{	
+		ke::Logger textLogger = ke::Logger("Text logger", spdlog::level::info);
 		class Text
 		{
 		public:
@@ -16,7 +18,6 @@ namespace ke
 			Text();
 
 			FT_Library mLibrary;
-			ke::Logger mLogger = ke::Logger("Text logger", spdlog::level::info);
 		};
 		class Font
 		{
@@ -25,6 +26,10 @@ namespace ke
 
 		private:
 			FT_Face mFace;
+
+			VkImage mImage;
+			VkImageView mImageView;
+			VkDeviceMemory mImageMemory;
 		};
 	}
 }

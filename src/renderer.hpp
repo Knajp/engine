@@ -80,6 +80,9 @@ namespace ke
 		void createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file);
 		void createTextureImageView(VkImageView& targetView, VkImage& sourceImage);
 
+		void createFontAtlasImage(VkImage& targetImage, VkDeviceMemory& targetMemory, unsigned char* data);
+		void createFontAtlasView(VkImageView& targetView, VkImage& sourceImage);
+
 		void pushTexture(int16_t txt);
 	private:
 		Renderer() = default;

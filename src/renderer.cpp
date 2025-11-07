@@ -961,6 +961,32 @@ void ke::Renderer::createTextureImageView(VkImageView& targetView, VkImage& sour
 	targetView = createImageView(sourceImage, VK_FORMAT_R8G8B8A8_SRGB);
 }
 
+void ke::Renderer::createFontAtlasImage(VkImage& targetImage, VkDeviceMemory& targetMemory, unsigned char* data)
+{
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+
+	createBuffer(1024 * 1024, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* bufferData;
+	vkMapMemory(mDevice, stagingBufferMemory, 0, 1024 * 1024, 0, &bufferData);
+	memcpy(bufferData, data, 1024 * 1024);
+	vkUnmapMemory(mDevice, stagingBufferMemory);
+
+	createImage(1024, 1024, VK_FORMAT_R8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, targetImage, targetMemory);
+	transitionImageLayout(targetImage, VK_FORMAT_R8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	copyBufferToImage(stagingBuffer, targetImage, 1024, 1024);
+	transitionImageLayout(targetImage, VK_FORMAT_R8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+	vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+void ke::Renderer::createFontAtlasView(VkImageView& targetView, VkImage& sourceImage)
+{
+	targetView = createImageView(sourceImage, VK_FORMAT_R8_SRGB);
+}
+
 void ke::Renderer::pushTexture(int16_t txt)
 {
 	ke::str::PushConstants pc = { txt };

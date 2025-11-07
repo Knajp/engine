@@ -86,5 +86,11 @@ namespace ke
 		{
 			int useTexture;
 		};
+		struct Glyph
+		{
+			float uvX, uvY, uvW, uvH;
+			int bearingX, bearingY;
+			int advance;
+		};
 	}
 }
