@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <map>
 #include <set>
-#include "stb/stb_image.h"
-
+#include "stb/stb_image.h" 
+#include <glm/gtc/matrix_transform.hpp>
 
 #ifndef NDEBUG
 bool enableLogging = true;
@@ -912,6 +912,16 @@ void ke::Renderer::createDescriptorSets()
 	}
 }
 
+void ke::Renderer::updateUniformBuffer(float aspectRatio)
+{
+	ke::str::MVP mvp{};
+	mvp.model = glm::mat4(1.0f);
+	mvp.view = glm::mat4(1.0f);
+	mvp.proj = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 10.0f);
+
+	memcpy(mUniformBuffersMapped[currentImageIndex], &mvp, sizeof(mvp));
+}
+
 void ke::Renderer::createTextureImage(VkImage& targetImage, VkDeviceMemory& targetMemory, std::string file)
 {
 	int tWidth, tHeight, numColCh;
@@ -1241,7 +1251,7 @@ void ke::Renderer::cleanupRenderer()
 	mLogger.trace("Renderer cleanup done.");
 }
 
-void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
+void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized, float ar)
 {
 	vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
 	VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageReadySemaphores[currentFrameInFlight], VK_NULL_HANDLE, &currentImageIndex);
@@ -1258,6 +1268,8 @@ void ke::Renderer::beginRecording(GLFWwindow* pWindow, bool hasResized)
 	}
 	else recreatedSwapchain = false;
 		
+	updateUniformBuffer(ar);
+
 	vkResetFences(mDevice, 1, &mInFlightFences[currentFrameInFlight]);
 
 	vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);

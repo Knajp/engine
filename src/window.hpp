@@ -32,9 +32,13 @@ namespace ke
 		void addToInteractable(std::shared_ptr<ke::ui::Button> element);
 		void clearInteractable();
 		
+		void calculateAspectRatio();
+		float getAspectRatio() const;
 	private:
-		const uint16_t mWidth;
-		const uint16_t mHeight;
+		uint16_t mWidth;
+		uint16_t mHeight;
+
+		float mAspectRatio;
 
 		GLFWwindow* pWindow;
 		std::string mWindowName;

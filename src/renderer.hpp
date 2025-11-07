@@ -61,7 +61,7 @@ namespace ke
 
 		void cleanupRenderer();
 
-		void beginRecording(GLFWwindow* pWindow, bool hasResized);
+		void beginRecording(GLFWwindow* pWindow, bool hasResized, float ar);
 		void endRecording();
 		void present(GLFWwindow* pWindow);
 
@@ -116,7 +116,8 @@ namespace ke
 		void createUniformBuffers();
 		void createDescriptorPool();
 		void createDescriptorSets();
-		
+		void updateUniformBuffer(float aspectRatio);
+
 		void createMenuTextureAtlas();
 		void createTextureSampler();
 

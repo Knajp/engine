@@ -64,18 +64,20 @@ int main(int argc, char** argv)
 		window.addToInteractable(minimizeButton);
 		window.addToInteractable(exitButton);
 
+		window.calculateAspectRatio();
 		while (!window.shouldClose())
 		{
 			window.processInput();
 
 			if (!window.hasIconified())
 			{
-				renderer.beginRecording(window.getWindow(), window.hasResized());
+				renderer.beginRecording(window.getWindow(), window.hasResized(), window.getAspectRatio());
 				if (renderer.hasRecreatedSwapchain())
 				{
 					window.setResized(false);
 					continue;
 				}
+
 				VkCommandBuffer commandBuffer = renderer.getCommandBuffer();
 				// DRAW CALLS GO HERE
 				topBar->Draw(commandBuffer);

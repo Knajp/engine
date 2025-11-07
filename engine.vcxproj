@@ -134,7 +134,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);STB_IMAGE_IMPLEMENTATION;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);STB_IMAGE_IMPLEMENTATION;GLM_FORCE_DEPTH_ZERO_TO_ONE;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)vendor/include;</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -176,6 +176,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\Rect.cpp" />
     <ClCompile Include="src\renderer.cpp" />
+    <ClCompile Include="src\text.cpp" />
     <ClCompile Include="src\window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -183,6 +184,7 @@
     <ClInclude Include="src\logger.hpp" />
     <ClInclude Include="src\Rect.hpp" />
     <ClInclude Include="src\renderer.hpp" />
+    <ClInclude Include="src\text.hpp" />
     <ClInclude Include="src\texture.hpp" />
     <ClInclude Include="src\util.hpp" />
     <ClInclude Include="src\window.hpp" />

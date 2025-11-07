@@ -4,6 +4,7 @@ static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	auto windowClass = reinterpret_cast<ke::Window*>(glfwGetWindowUserPointer(window));
 	windowClass->setResized(true);
+	windowClass->calculateAspectRatio();
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
@@ -12,6 +13,7 @@ ke::Window::Window(uint16_t w, uint16_t h, std::string n)
 	:mWidth(w), mHeight(h), mWindowName(n)
 {
 	initWindow();
+	calculateAspectRatio();
 }
 
 ke::Window::~Window()
@@ -96,6 +98,16 @@ void ke::Window::addToInteractable(std::shared_ptr<ke::ui::Button> element)
 void ke::Window::clearInteractable()
 {
 	mInteractable.clear();
+}
+
+void ke::Window::calculateAspectRatio()
+{
+	mAspectRatio = (float)mWidth / (float)mHeight;
+}
+
+float ke::Window::getAspectRatio() const
+{
+	return mAspectRatio;
 }
 
 void ke::Window::initWindow()
