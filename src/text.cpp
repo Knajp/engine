@@ -7,9 +7,23 @@ ke::text::Text& ke::text::Text::getInstance()
 	return instance;
 }
 
+void ke::text::Text::buildTextVertices(const std::string& text, const std::string_view font, glm::vec2 position, glm::vec3 color)
+{
+	std::vector<ke::str::Vertex> vertices;
+	float x = position.x;
+	float y = position.y;
+
+	std::shared_ptr<Font> font = mFontMap[font];
+
+	for (char c : text)
+	{
+		auto it = font->gl
+	}
+}
+
 void ke::text::Text::loadFont(std::string path, std::string key)
 {
-	mFontMap[key] = std::make_shared<Font>(path);
+	mFontMap[key] = std::make_shared<Font>(path, mLibrary);
 }
 
 ke::text::Text::Text()

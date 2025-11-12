@@ -14,23 +14,6 @@ namespace ke
 		inline ke::Logger textLogger = ke::Logger("Text logger", spdlog::level::info);
 
 		constexpr std::string_view FONT_PATH_GOTHIC = "fonts/GOTHIC.TTF";
-		class Text
-		{
-		public:
-			static Text& getInstance();
-
-			void loadFont(std::string path, std::string key);
-		private:
-			Text();
-
-			FT_Library mLibrary;
-			VkSampler mTextSampler;
-			VkDescriptorSetLayout mSetLayout;
-			std::vector<VkDescriptorSet> mSets;
-
-
-			std::unordered_map<std::string_view, std::shared_ptr<Font>> mFontMap;
-		};
 		class Font
 		{
 		public:
@@ -43,5 +26,24 @@ namespace ke
 			VkImageView mImageView;
 			VkDeviceMemory mImageMemory;
 		};
+		class Text
+		{
+		public:
+			static Text& getInstance();
+
+			void buildTextVertices(const std::string& text, const std::string_view font, glm::vec2 position, glm::vec3 color);
+			void loadFont(std::string path, std::string key);
+		private:
+			Text();
+
+			FT_Library mLibrary;
+			VkSampler mTextSampler;
+			VkDescriptorSetLayout mSetLayout;
+			std::vector<VkDescriptorSet> mSets;
+
+
+			std::unordered_map<std::string_view, std::shared_ptr<Font>> mFontMap;
+		};
+		
 	}
 }

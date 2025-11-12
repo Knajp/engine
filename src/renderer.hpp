@@ -85,7 +85,7 @@ namespace ke
 
 		void createTextSampler(VkSampler& targetSampler);
 		void createTextSetLayout(VkDescriptorSetLayout& targetLayout);
-		void createTextSets(std::vector<VkDescriptorSet>& sets);
+		void createTextSets(std::vector<VkDescriptorSet>& sets, VkDescriptorSetLayout& layout, VkImageView& imageView, VkSampler& sampler);
 
 		void pushTexture(int16_t txt);
 
