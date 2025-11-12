@@ -859,7 +859,7 @@ void ke::Renderer::createDescriptorPool()
 	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	createInfo.pPoolSizes = poolSizes.data();
-	createInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight);
+	createInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight) * 2;
 
 	if (vkCreateDescriptorPool(mDevice, &createInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
 		mLogger.error("Failed to create descriptor pool!");
@@ -985,6 +985,80 @@ void ke::Renderer::createFontAtlasImage(VkImage& targetImage, VkDeviceMemory& ta
 void ke::Renderer::createFontAtlasView(VkImageView& targetView, VkImage& sourceImage)
 {
 	targetView = createImageView(sourceImage, VK_FORMAT_R8_SRGB);
+}
+
+void ke::Renderer::createTextSampler(VkSampler& targetSampler)
+{
+	VkSamplerCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	createInfo.minFilter = VK_FILTER_LINEAR;
+	createInfo.magFilter = VK_FILTER_LINEAR;
+	createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	createInfo.anisotropyEnable = VK_FALSE;
+	createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	createInfo.compareEnable = VK_FALSE;
+	createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	createInfo.mipLodBias = 0.0f;
+	createInfo.maxLod = 0.0f;
+	createInfo.minLod = 0.0f;
+
+	if (vkCreateSampler(mDevice, &createInfo, nullptr, &targetSampler) != VK_SUCCESS)
+		mLogger.error("Failed to create text sampler!");
+}
+
+void ke::Renderer::createTextSetLayout(VkDescriptorSetLayout& targetLayout)
+{
+	// Descriptor Set Layout only containing sampler binding
+	VkDescriptorSetLayoutBinding binding{};
+	binding.binding = 0;
+	binding.descriptorCount = 1;
+	binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayoutCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	createInfo.bindingCount = 1;
+	createInfo.pBindings = &binding;
+
+	if (vkCreateDescriptorSetLayout(mDevice, &createInfo, nullptr, &targetLayout) != VK_SUCCESS)
+		mLogger.error("Failed to create text set layout!");
+}
+
+void ke::Renderer::createTextSets(std::vector<VkDescriptorSet>& sets, VkDescriptorSetLayout& layout, VkImageView& imageView, VkSampler& sampler)
+{
+	std::vector<VkDescriptorSetLayout> layouts(maxFramesInFlight, layout);
+
+	VkDescriptorSetAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = mDescriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
+	allocInfo.pSetLayouts = layouts.data();
+
+	sets.resize(maxFramesInFlight);
+	if (vkAllocateDescriptorSets(mDevice, nullptr, sets.data()) != VK_SUCCESS)
+		mLogger.error("Failed to allocate text descriptor sets!");
+
+	for (int i = 0; i < maxFramesInFlight; i++)
+	{
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = imageView;
+		imageInfo.sampler = sampler;
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.dstSet = sets[i];
+		write.dstBinding = 0;
+		write.dstArrayElement = 0;
+		write.descriptorCount = 1;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		write.pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+	}
 }
 
 void ke::Renderer::pushTexture(int16_t txt)

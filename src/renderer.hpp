@@ -83,7 +83,15 @@ namespace ke
 		void createFontAtlasImage(VkImage& targetImage, VkDeviceMemory& targetMemory, unsigned char* data);
 		void createFontAtlasView(VkImageView& targetView, VkImage& sourceImage);
 
+		void createTextSampler(VkSampler& targetSampler);
+		void createTextSetLayout(VkDescriptorSetLayout& targetLayout);
+		void createTextSets(std::vector<VkDescriptorSet>& sets);
+
 		void pushTexture(int16_t txt);
+
+	public:
+		const uint8_t maxFramesInFlight = 2;
+
 	private:
 		Renderer() = default;
 
@@ -173,7 +181,7 @@ namespace ke
 
 		uint32_t currentImageIndex;
 		uint32_t currentFrameInFlight = 0;
-		const uint8_t maxFramesInFlight = 2;
+		
 
 		bool recreatedSwapchain = false;
 		bool framebufferResized = false;

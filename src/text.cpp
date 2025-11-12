@@ -1,4 +1,5 @@
 #include "text.hpp"
+#include "renderer.hpp"
 
 ke::text::Text& ke::text::Text::getInstance()
 {
@@ -6,10 +7,18 @@ ke::text::Text& ke::text::Text::getInstance()
 	return instance;
 }
 
+void ke::text::Text::loadFont(std::string path, std::string key)
+{
+	mFontMap[key] = std::make_shared<Font>(path);
+}
+
 ke::text::Text::Text()
 {
 	if (FT_Init_FreeType(&mLibrary))
 		ke::text::textLogger.error("Failed to initialize FreeType!");
+
+	ke::Renderer::getInstance().createTextSampler(mTextSampler);
+	ke::Renderer::getInstance().createTextSetLayout(mSetLayout);
 }
 
 ke::text::Font::Font(std::string path, FT_Library& lib)
@@ -37,7 +46,7 @@ ke::text::Font::Font(std::string path, FT_Library& lib)
 			rowHeight = 0;
 		}
 
-		for (int row = 0; row < g->bitmap.rows; row++)
+		for (unsigned int row = 0; row < g->bitmap.rows; row++)
 			memcpy(atlasData + (y + row) * ATLASWIDTH + x, g->bitmap.buffer + row * g->bitmap.width, g->bitmap.width);
 
 		glyphs[c] = {
@@ -54,4 +63,8 @@ ke::text::Font::Font(std::string path, FT_Library& lib)
 		rowHeight = std::max(rowHeight, (int)g->bitmap.rows);
 
 	}
+
+	ke::Renderer::getInstance().createFontAtlasImage(mImage, mImageMemory, atlasData);
+	ke::Renderer::getInstance().createFontAtlasView(mImageView, mImage);
+
 }
