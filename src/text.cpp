@@ -7,17 +7,35 @@ ke::text::Text& ke::text::Text::getInstance()
 	return instance;
 }
 
-void ke::text::Text::buildTextVertices(const std::string& text, const std::string_view font, glm::vec2 position, glm::vec3 color)
+void ke::text::Text::buildTextVertices(const std::string& text, const std::string_view _font, glm::vec2 position, glm::vec3 color)
 {
 	std::vector<ke::str::Vertex> vertices;
 	float x = position.x;
 	float y = position.y;
 
-	std::shared_ptr<Font> font = mFontMap[font];
-
+	std::shared_ptr<Font> font = mFontMap[_font];
 	for (char c : text)
 	{
-		auto it = font->gl
+		const ke::str::Glyph& g = font->glyphs[c];
+
+		float xMin = x + g.bearingX;
+		float yMax = y - g.bearingY;
+
+		float w = g.uvW;
+		float h = g.uvH;
+
+		float xMax = xMin + w;
+		float yMin = yMax + h;
+
+		vertices.push_back(ke::str::Vertex({ xMin, yMax }, color, { g.uvX,         g.uvY }));
+		vertices.push_back(ke::str::Vertex({ xMax, yMax }, color, { g.uvX + g.uvW, g.uvY }));
+		vertices.push_back(ke::str::Vertex({ xMax, yMin }, color, { g.uvX + g.uvW, g.uvY + g.uvH }));
+
+		vertices.push_back(ke::str::Vertex({ xMin, yMax }, color, { g.uvX,         g.uvY }));
+		vertices.push_back(ke::str::Vertex({ xMax, yMin }, color, { g.uvX + g.uvW, g.uvY + g.uvH }));
+		vertices.push_back(ke::str::Vertex({ xMin, yMin }, color, { g.uvX,         g.uvY + g.uvH }));
+
+		x += g.advance;
 	}
 }
 
@@ -45,7 +63,6 @@ ke::text::Font::Font(std::string path, FT_Library& lib)
 	memset(atlasData, 0, ATLASWIDTH * ATLASHEIGHT);
 
 	int x = 0, y = 0, rowHeight = 0;
-	std::map<char, ke::str::Glyph> glyphs;
 
 	for (unsigned char c = 32; c < 128; c++)
 	{

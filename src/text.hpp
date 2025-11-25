@@ -19,6 +19,8 @@ namespace ke
 		public:
 			Font(std::string path, FT_Library& lib);
 
+			std::map<char, ke::str::Glyph> glyphs;
+
 		private:
 			FT_Face mFace;
 
@@ -43,6 +45,17 @@ namespace ke
 
 
 			std::unordered_map<std::string_view, std::shared_ptr<Font>> mFontMap;
+		};
+		class TextLabel
+		{
+		public:
+			TextLabel();
+
+		private:
+
+			std::vector<ke::str::Vertex> mVertices;
+			std::vector<uint16_t> mIndices;
+
 		};
 		
 	}
